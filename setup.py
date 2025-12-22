@@ -10,5 +10,11 @@ setup(
         "python-multibase>=1.0.3",
         "python-jose[cryptography]>=3.3.0"  # For standard JWT handling
     ],
+    extras_require={
+        "test": [
+            "pytest>=7.0.0",
+            "pytest-cov>=4.0.0"
+        ]
+    },
     python_requires=">=3.8",
 )
