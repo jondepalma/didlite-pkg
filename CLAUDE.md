@@ -80,10 +80,169 @@ Expected output: Generates a new DID and signed JWS token.
 
 ### Dependencies
 - `pynacl>=1.5.0` - Ed25519 signing (libsodium wrapper)
-- `python-multibase>=1.0.3` - Multibase encoding for DID formatting
+- `py-multibase>=1.0.0` - Multibase encoding for DID formatting
 - `python-jose[cryptography]>=3.3.0` - Standard JWT handling utilities
 
 Requires Python 3.8+
+
+## Gitea Workflow with Tea CLI
+
+This project uses Gitea for issue tracking and pull requests. The `tea` CLI is configured for seamless workflow.
+
+### Tea CLI Configuration
+
+**Important**: The tea CLI is configured to work with the git remote. The configuration is in `~/.config/tea/config.yml`:
+- **URL**: `http://localhost:3000` (requires port-forwarding to K3s Gitea instance)
+- **SSH Host**: `gitea` (matches the git remote `git@gitea:jondepalma/didlite-pkg.git`)
+- **User**: `jondepalma`
+
+**Prerequisites**:
+- Ensure Gitea port-forward is active: `kubectl port-forward -n dev svc/gitea-http 3000:3000`
+- The tea CLI auto-detects the repository from git remotes (no need for `-r` flag when in repo directory)
+
+### Issue Management
+
+**Create an issue**:
+```bash
+tea issues create --title "Issue title" --description "Detailed description of the issue"
+```
+
+**List issues**:
+```bash
+tea issues list              # List open issues
+tea issues list --state all  # List all issues (open and closed)
+```
+
+**Close an issue**:
+```bash
+tea issues close <issue_number>
+```
+
+**View issue details**:
+```bash
+tea issues <issue_number>
+```
+
+### Pull Request Workflow
+
+**Standard workflow for bug fixes and features**:
+
+1. **Work on dev branch**:
+```bash
+git checkout dev
+# Make changes, run tests
+pytest -v
+```
+
+2. **Commit changes** (following conventional commits):
+```bash
+git add <files>
+git commit -m "fix: Brief description
+
+Detailed explanation of the fix.
+
+Resolves #<issue_number>
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
+```
+
+3. **Push to origin/dev**:
+```bash
+git push origin dev
+```
+
+4. **Create pull request**:
+```bash
+tea pulls create --base main --head dev \
+  --title "Brief PR title" \
+  --description "## Summary
+- What changed
+- Why it changed
+- Impact
+
+## Test Results
+<test output>
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)"
+```
+
+**List pull requests**:
+```bash
+tea pulls list
+tea pulls list --state all
+```
+
+**View PR details**:
+```bash
+tea pulls <pr_number>
+```
+
+### Git Workflow Best Practices
+
+**Branch Strategy**:
+- `main`: Production-ready code
+- `dev`: Development branch (default for new features/fixes)
+- Feature branches: Created from `dev` as needed
+
+**Commit Message Format**:
+```
+<type>: <short summary>
+
+<detailed description>
+
+Resolves #<issue_number>
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
+**Commit Types**:
+- `fix:` - Bug fixes
+- `feat:` - New features
+- `docs:` - Documentation changes
+- `test:` - Test additions or modifications
+- `refactor:` - Code refactoring
+- `chore:` - Maintenance tasks
+
+### Testing Before Commits
+
+**Always run tests before creating commits or PRs**:
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run full test suite
+pytest -v
+
+# Run with coverage
+pytest --cov=didlite --cov-report=term-missing
+```
+
+**For bug fixes**:
+1. Run tests to identify failures
+2. Create Gitea issues for bugs found (instead of immediately fixing)
+3. Fix bugs and reference issue numbers in commits
+4. Verify all tests pass before pushing
+
+### Troubleshooting Tea CLI
+
+**If tea can't detect the repository**:
+- Ensure you're in the repository directory
+- Verify git remote matches tea config: `git remote -v`
+- Check tea config: `cat ~/.config/tea/config.yml`
+- The `ssh_host` in tea config must match the git remote hostname (currently: `gitea`)
+
+**If port-forwarding is not active**:
+```bash
+# Check for existing port-forward
+ps aux | grep "port-forward.*gitea"
+
+# Start port-forward if needed
+kubectl port-forward -n dev svc/gitea-http 3000:3000 &
+```
 
 ## Important Implementation Notes
 
