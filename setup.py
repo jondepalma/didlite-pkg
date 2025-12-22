@@ -7,7 +7,7 @@ setup(
     packages=find_packages(),
     install_requires=[
         "pynacl>=1.5.0",
-        "python-multibase>=1.0.3",
+        "py-multibase>=1.0.0",
         "python-jose[cryptography]>=3.3.0"  # For standard JWT handling
     ],
     extras_require={
