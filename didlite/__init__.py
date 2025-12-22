@@ -3,7 +3,7 @@ didlite: Lightweight Identity for Agents & IoT
 """
 
 __version__ = "0.1.0"
-__author__ = "Your Name / Org"
+__author__ = "Jon DePalma"
 
 # Expose the main classes to the top level
 from .core import AgentIdentity, resolve_did_to_key
