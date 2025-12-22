@@ -92,13 +92,13 @@ This project uses Gitea for issue tracking and pull requests. The `tea` CLI is c
 ### Tea CLI Configuration
 
 **Important**: The tea CLI is configured to work with the git remote. The configuration is in `~/.config/tea/config.yml`:
-- **URL**: `http://localhost:3000` (requires port-forwarding to K3s Gitea instance)
+- **URL**: `http://git.jondepalma.net` (external Gitea URL via Traefik ingress)
 - **SSH Host**: `gitea` (matches the git remote `git@gitea:jondepalma/didlite-pkg.git`)
 - **User**: `jondepalma`
 
 **Prerequisites**:
-- Ensure Gitea port-forward is active: `kubectl port-forward -n dev svc/gitea-http 3000:3000`
 - The tea CLI auto-detects the repository from git remotes (no need for `-r` flag when in repo directory)
+- Gitea is accessible via external URL (no port-forwarding required)
 
 ### Issue Management
 
@@ -235,14 +235,10 @@ pytest --cov=didlite --cov-report=term-missing
 - Check tea config: `cat ~/.config/tea/config.yml`
 - The `ssh_host` in tea config must match the git remote hostname (currently: `gitea`)
 
-**If port-forwarding is not active**:
-```bash
-# Check for existing port-forward
-ps aux | grep "port-forward.*gitea"
-
-# Start port-forward if needed
-kubectl port-forward -n dev svc/gitea-http 3000:3000 &
-```
+**If tea commands fail**:
+- Verify Gitea is accessible: `curl -I http://git.jondepalma.net`
+- Check tea login: `tea login list`
+- Verify token is valid in Gitea web UI (Settings → Applications)
 
 ## Important Implementation Notes
 
