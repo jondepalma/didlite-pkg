@@ -2,26 +2,72 @@ from nacl.signing import SigningKey, VerifyKey
 from nacl.encoding import RawEncoder
 import multibase
 import base64
+from typing import Optional, TYPE_CHECKING
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ed25519
 from cryptography.hazmat.backends import default_backend
+
+if TYPE_CHECKING:
+    from didlite.keystore import KeyStore
 
 # W3C Multicodec prefix for Ed25519 public keys (0xed01)
 # See: https://github.com/multiformats/multicodec/blob/master/table.csv
 ED25519_CODEC = b'\xed\x01'
 
 class AgentIdentity:
-    def __init__(self, seed=None):
+    def __init__(
+        self,
+        seed: Optional[bytes] = None,
+        keystore: Optional['KeyStore'] = None,
+        identifier: Optional[str] = None
+    ):
         """
-        Initialize an identity.
-        If seed is provided (32 bytes), loads existing identity.
-        If None, generates a new random identity.
+        Initialize an identity with optional persistent storage.
+
+        Args:
+            seed: Optional 32-byte Ed25519 seed. If provided, uses this specific seed.
+            keystore: Optional KeyStore instance for persistent identity storage.
+            identifier: Optional identifier for keystore lookup (required if keystore provided).
+
+        Behavior:
+            - If seed provided: Uses the provided seed (optionally saves to keystore if both provided)
+            - If keystore and identifier provided (no seed): Attempts to load from keystore,
+              generates new identity and saves to keystore if not found
+            - If neither seed nor keystore: Generates new random ephemeral identity
+
+        Raises:
+            ValueError: If keystore provided without identifier, or vice versa
         """
+        # Validate keystore parameters
+        if keystore is not None and identifier is None:
+            raise ValueError("identifier is required when keystore is provided")
+        if identifier is not None and keystore is None:
+            raise ValueError("keystore is required when identifier is provided")
+
+        self.keystore = keystore
+        self.identifier = identifier
+
+        # Determine seed source
         if seed:
+            # Use provided seed
             self.signing_key = SigningKey(seed, encoder=RawEncoder)
+            # Optionally save to keystore if configured
+            if self.keystore and self.identifier:
+                self.keystore.save_seed(self.identifier, seed)
+        elif self.keystore and self.identifier:
+            # Try to load from keystore
+            stored_seed = self.keystore.load_seed(self.identifier)
+            if stored_seed:
+                self.signing_key = SigningKey(stored_seed, encoder=RawEncoder)
+            else:
+                # Generate new identity and save to keystore
+                self.signing_key = SigningKey.generate()
+                seed_bytes = bytes(self.signing_key)[:32]  # Extract seed
+                self.keystore.save_seed(self.identifier, seed_bytes)
         else:
+            # Generate ephemeral identity
             self.signing_key = SigningKey.generate()
-        
+
         self.verify_key = self.signing_key.verify_key
         self.did = self._derive_did()
 
