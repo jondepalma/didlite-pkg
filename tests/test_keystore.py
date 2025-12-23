@@ -128,6 +128,28 @@ class TestEnvKeyStore:
         # Should be stored as uppercase
         assert "DIDLITE_SEED_MYAGENT" in os.environ
 
+    def test_load_corrupted_seed_wrong_size(self):
+        """Test that loading corrupted seed with wrong size raises error (Issue #11)"""
+        import base64
+        store = EnvKeyStore()
+
+        # Manually set environment variable with wrong-sized seed (16 bytes instead of 32)
+        wrong_seed = base64.b64encode(b"a" * 16).decode('ascii')
+        os.environ["DIDLITE_SEED_CORRUPTED"] = wrong_seed
+
+        with pytest.raises(ValueError, match="Stored seed must be 32 bytes"):
+            store.load_seed("corrupted")
+
+    def test_load_invalid_base64_encoding(self):
+        """Test that loading seed with invalid base64 raises error (Issue #11)"""
+        store = EnvKeyStore()
+
+        # Set environment variable with invalid base64
+        os.environ["DIDLITE_SEED_INVALID"] = "INVALID_BASE64_@@@_NOT_VALID"
+
+        with pytest.raises(ValueError, match="Failed to decode seed"):
+            store.load_seed("invalid")
+
 
 class TestFileKeyStore:
     """Tests for FileKeyStore"""
@@ -236,6 +258,35 @@ class TestFileKeyStore:
 
         assert store.load_seed("agent1") == seed1
         assert store.load_seed("agent2") == seed2
+
+    def test_load_corrupted_file_wrong_seed_size(self):
+        """Test that loading file with corrupted seed size raises error (Issue #11)"""
+        from cryptography.fernet import Fernet
+        import json
+        import base64
+
+        store = FileKeyStore(self.test_dir, password="test_password")
+
+        # Create a manually corrupted file with wrong-sized seed
+        salt = os.urandom(16)
+        key = store._derive_key(salt)
+        fernet = Fernet(key)
+
+        # Encrypt a wrong-sized seed (16 bytes instead of 32)
+        wrong_seed = b"a" * 16
+        encrypted_seed = fernet.encrypt(wrong_seed)
+
+        data = {
+            'salt': base64.b64encode(salt).decode('ascii'),
+            'encrypted_seed': base64.b64encode(encrypted_seed).decode('ascii')
+        }
+
+        file_path = os.path.join(self.test_dir, "corrupted.enc")
+        with open(file_path, 'w') as f:
+            json.dump(data, f)
+
+        with pytest.raises(ValueError, match="Decrypted seed must be 32 bytes"):
+            store.load_seed("corrupted")
 
 
 class TestAgentIdentityWithKeyStore:

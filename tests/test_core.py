@@ -288,6 +288,47 @@ class TestAgentIdentity:
         assert sig1 == sig_jwk
         assert sig1 == sig_pem
 
+    def test_from_jwk_invalid_private_key_size(self):
+        """Test that JWK with wrong private key size raises error (Issue #11)"""
+        import base64
+
+        # Create a JWK with wrong-sized private key (16 bytes instead of 32)
+        wrong_size_key = base64.urlsafe_b64encode(b"a" * 16).rstrip(b'=').decode('utf-8')
+
+        # Create a valid public key for the JWK structure
+        agent_temp = AgentIdentity()
+        valid_jwk = agent_temp.to_jwk(include_private=False)
+
+        # Add the invalid private key
+        invalid_jwk = valid_jwk.copy()
+        invalid_jwk['d'] = wrong_size_key
+
+        with pytest.raises(ValueError, match="private key must be 32 bytes"):
+            AgentIdentity.from_jwk(invalid_jwk)
+
+    def test_from_pem_non_ed25519_key(self):
+        """Test that importing non-Ed25519 PEM raises error (Issue #11)"""
+        from cryptography.hazmat.primitives.asymmetric import rsa
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.backends import default_backend
+
+        # Generate RSA key (not Ed25519)
+        rsa_key = rsa.generate_private_key(
+            public_exponent=65537,
+            key_size=2048,
+            backend=default_backend()
+        )
+
+        # Export as PEM
+        rsa_pem = rsa_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        ).decode('utf-8')
+
+        with pytest.raises(ValueError, match="key must be Ed25519"):
+            AgentIdentity.from_pem(rsa_pem)
+
 
 class TestResolveDIDToKey:
     """Tests for resolve_did_to_key function"""
