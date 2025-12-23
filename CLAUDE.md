@@ -81,7 +81,9 @@ Expected output: Generates a new DID and signed JWS token.
 ### Dependencies
 - `pynacl>=1.5.0` - Ed25519 signing (libsodium wrapper)
 - `py-multibase>=1.0.0` - Multibase encoding for DID formatting
-- `python-jose[cryptography]>=3.3.0` - Standard JWT handling utilities
+
+Test dependencies:
+- `authlib>=1.0.0` - For integration tests and interoperability validation
 
 Requires Python 3.8+
 

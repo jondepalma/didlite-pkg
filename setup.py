@@ -8,12 +8,12 @@ setup(
     install_requires=[
         "pynacl>=1.5.0",
         "py-multibase>=1.0.0",
-        "python-jose[cryptography]>=3.3.0"  # For standard JWT handling
     ],
     extras_require={
         "test": [
             "pytest>=7.0.0",
-            "pytest-cov>=4.0.0"
+            "pytest-cov>=4.0.0",
+            "authlib>=1.0.0"  # For integration tests
         ]
     },
     python_requires=">=3.8",
