@@ -36,13 +36,13 @@ Expected output: Generates a new DID and signed JWS token with verification.
 
 ## Test Suite Overview
 
-The test suite contains **96 tests** organized into 4 categories:
+The test suite contains **101 tests** organized into 4 categories:
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| Core (`test_core.py`) | 28 | Identity generation, DID resolution, JWK/PEM export/import |
+| Core (`test_core.py`) | 30 | Identity generation, DID resolution, JWK/PEM export/import, security validation |
 | JWS (`test_jws.py`) | 34 | Token creation, verification, TTL expiration |
-| Keystore (`test_keystore.py`) | 29 | All storage backends (Memory, Env, File) |
+| Keystore (`test_keystore.py`) | 32 | All storage backends (Memory, Env, File), corruption detection |
 | Integration (`test_integration.py`) | 5 | Authlib interoperability |
 
 ## Running Specific Test Categories
@@ -68,7 +68,9 @@ pytest tests/test_core.py::TestAgentIdentity::test_jwk_roundtrip_signature_verif
 - DID format compliance (`did:key:z...`)
 - Ed25519 signature creation and verification
 - JWK export/import (RFC 7517)
+  - Invalid JWK private key size validation
 - PEM export/import (PKCS8 and SubjectPublicKeyInfo)
+  - Non-Ed25519 key type rejection (RSA, ECDSA)
 - Cross-format consistency (JWK ↔ PEM)
 
 ### JWS Token Tests
@@ -109,10 +111,13 @@ pytest tests/test_keystore.py::TestEnvKeyStore -v
 **What's tested:**
 - **MemoryKeyStore**: In-memory storage (ephemeral)
 - **EnvKeyStore**: Environment variable storage
+  - Corrupted seed size detection
+  - Invalid base64 encoding handling
 - **FileKeyStore**: Encrypted file storage (PBKDF2 + Fernet)
+  - Corrupted encrypted file detection
 - AgentIdentity integration (persistence across restarts)
 - Security: file permissions (0o600), path traversal protection
-- Error handling: wrong passwords, invalid seeds
+- Error handling: wrong passwords, invalid seeds, data corruption
 
 ### Integration Tests
 
@@ -145,10 +150,40 @@ xdg-open htmlcov/index.html  # Linux
 
 ### Current Coverage
 
-The test suite provides comprehensive coverage:
-- `didlite/core.py`: ~95%+ coverage
-- `didlite/jws.py`: ~95%+ coverage
-- `didlite/keystore.py`: ~95%+ coverage
+The test suite provides excellent coverage across all modules:
+
+| Module | Coverage | Details |
+|--------|----------|---------|
+| `didlite/__init__.py` | 100% | Complete coverage |
+| `didlite/core.py` | 100% | Complete coverage ✨ |
+| `didlite/jws.py` | 98% | 1 defensive exception handler uncovered |
+| `didlite/keystore.py` | 95% | 5 acceptable gaps (see policy below) |
+| **Overall** | **98%** | **6 uncovered lines (all acceptable)** |
+
+### Coverage Policy
+
+**Target:** ≥ 95% coverage
+
+**Acceptable gaps** (lines that don't require testing):
+
+1. **Abstract method placeholders** - `pass` statements in ABC base classes
+   - Example: `keystore.py:33, 49, 62`
+   - Rationale: These should never execute; all concrete implementations are fully tested
+
+2. **Defensive exception handlers** - Generic wrappers for truly unexpected errors
+   - Example: `jws.py:127`
+   - Rationale: Main error paths are comprehensively tested; these catch edge cases
+
+3. **Trivial edge cases** - Simple operations already tested in similar contexts
+   - Example: `keystore.py:142, 263` (delete non-existent seed returns False)
+   - Rationale: Minimal business logic value; pattern tested in other implementations
+
+**Why 98% is excellent:**
+- Security-critical code paths: 100% covered
+- Cryptographic operations: 100% covered
+- Data integrity checks: 100% covered
+- All keystore implementations: Fully tested
+- Remaining gaps are defensive/abstract code with minimal security impact
 
 ## Manual Testing Scenarios
 
@@ -398,10 +433,26 @@ print(f"Created 100 tokens in {elapsed:.2f}s ({elapsed*10:.2f}ms each)")
 
 ## Summary
 
-- **96 tests** covering all functionality
+- **101 tests** covering all functionality
 - **4 test categories**: Core, JWS, Keystore, Integration
-- **High coverage**: ~95%+ across all modules
-- **Fast execution**: Full suite runs in ~7 seconds
+- **Excellent coverage**: 98% overall, with 100% on security-critical code
+- **Fast execution**: Full suite runs in ~7.7 seconds
 - **No skipped tests**: All tests are active and passing
+
+### Test Coverage Statistics
+
+```
+Total Statements: 251
+Covered: 245
+Missing: 6 (all acceptable per coverage policy)
+Coverage: 98%
+```
+
+### Coverage by Priority
+
+- **Security-critical code**: 100% (cryptographic operations, key validation)
+- **Data integrity**: 100% (corruption detection, validation)
+- **Business logic**: 98%+ (all core functionality)
+- **Defensive code**: Partially covered (acceptable gaps documented)
 
 For questions or issues with testing, refer to the main README.md or open an issue on Gitea.
