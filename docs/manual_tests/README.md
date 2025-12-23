@@ -19,6 +19,7 @@ Execute the scripts in order from the project root:
 # Run all scenarios
 python docs/manual_tests/01_basic_identity_and_token.py
 python docs/manual_tests/02_persistent_identity_filestore.py
+python docs/manual_tests/02.5_all_keystore_types.py
 python docs/manual_tests/03_token_expiration.py
 python docs/manual_tests/04_jwk_export_to_authlib.py
 python docs/manual_tests/05_pem_export_for_openssl.py
@@ -52,6 +53,23 @@ chmod +x docs/manual_tests/*.py
 - Cross-session signature verification
 
 **Expected output:** Matching DIDs across two sessions.
+
+---
+
+### 02.5 - All KeyStore Types Comprehensive Demo
+**Purpose:** Demonstrate all three keystore implementations with full API coverage.
+
+**What it tests:**
+- **MemoryKeyStore**: In-memory storage, save/load/delete operations
+- **EnvKeyStore**: Environment variable storage with custom prefixes
+- **FileKeyStore**: Encrypted file storage with PBKDF2 + Fernet
+- All keystore methods: `save_seed()`, `load_seed()`, `delete_seed()`
+- Cross-session verification for each type
+- Security characteristics and file permissions
+
+**Expected output:** Comprehensive verbose demonstration of all three keystore types with detailed explanations, file inspection, and a comparison table.
+
+**Note:** This is the most verbose test scenario, providing deep insights into keystore internals.
 
 ---
 
