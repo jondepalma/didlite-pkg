@@ -1,0 +1,172 @@
+name: Bug Report
+about: Report a bug in didlite
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before submitting a bug report
+
+        - Search existing issues to avoid duplicates
+        - Verify you're using the latest version of didlite
+        - Ensure the bug isn't caused by your code or dependencies
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission checklist
+      description: Please confirm the following before submitting
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I am using the latest version of didlite from PyPI or main branch
+          required: true
+        - label: I have read the documentation and my use case is supported
+          required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: didlite Version
+      description: Output of `pip show didlite | grep Version`
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python Version
+      description: Output of `python --version`
+      placeholder: "3.11.2"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating System
+      description: Include OS and architecture (e.g., Ubuntu 22.04 ARM64, macOS 14 M2, Raspberry Pi OS)
+      placeholder: "Raspberry Pi OS (Debian 12) ARM64"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Clear and concise description of what the bug is
+      placeholder: When calling create_jws() with a payload containing Unicode characters, the signature verification fails...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What you expected to happen
+      placeholder: The JWS token should be created and verified successfully with Unicode payload data
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened (include error messages)
+      placeholder: |
+        Traceback (most recent call last):
+          File "test.py", line 10, in <module>
+            ...
+        BadSignatureError: Signature verification failed
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal Reproduction Steps
+      description: |
+        **REQUIRED:** Provide a minimal, reproducible code example that demonstrates the bug.
+
+        - Use actual runnable Python code (not pseudocode)
+        - Include all necessary imports
+        - Remove unrelated code
+        - Should be less than 20 lines if possible
+
+        Issues without reproducible steps may be closed.
+      placeholder: |
+        ```python
+        from didlite.core import AgentIdentity
+        from didlite.jws import create_jws, verify_jws
+
+        agent = AgentIdentity()
+        payload = {"message": "Hello 世界"}
+
+        token = create_jws(agent, payload)
+        result = verify_jws(token)  # Fails here
+        print(result)
+        ```
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Additional Environment Details
+      description: |
+        Dependency versions, hardware constraints, network conditions, etc.
+
+        Run: `pip list | grep -E "(pynacl|multibase|jose)"`
+      placeholder: |
+        pynacl==1.5.0
+        py-multibase==1.0.3
+        python-jose==3.3.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround (if any)
+      description: Have you found a temporary workaround?
+      placeholder: "Encoding payload as base64 before passing to create_jws() works"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: impact
+    attributes:
+      label: Impact Severity
+      description: How severely does this affect your use case?
+      options:
+        - Critical - Blocks production deployment
+        - High - Major functionality broken
+        - Medium - Feature works with workaround
+        - Low - Minor inconvenience
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Affected Components
+      description: Which parts of didlite are affected?
+      options:
+        - label: AgentIdentity (key generation/management)
+        - label: DID derivation (did:key encoding)
+        - label: JWS creation (create_jws)
+        - label: JWS verification (verify_jws)
+        - label: DID resolution (resolve_did_to_key)
+        - label: Documentation
+        - label: Other (specify in description)
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information (logs, screenshots, related issues)
+    validations:
+      required: false

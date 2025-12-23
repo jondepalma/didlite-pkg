@@ -1,0 +1,309 @@
+name: Feature Request
+about: Propose a new feature for didlite
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Before requesting a feature
+
+        **didlite is intentionally minimal.** We prioritize simplicity and zero-infrastructure deployment over feature completeness.
+
+        ### Review the "lite" philosophy first:
+        - Read [docs/FUTURE_UPGRADES.md](../docs/FUTURE_UPGRADES.md) to understand our roadmap
+        - Check if your use case is listed in "Anti-Use Cases" (see FUTURE_UPGRADES.md line 116-120)
+        - Consider if a plugin/extension would be better than core functionality
+
+        ### Features we will likely reject:
+        - ❌ Additional DID methods beyond did:key (conflicts with portability)
+        - ❌ Blockchain integration or ledger dependencies
+        - ❌ Database requirements (Redis, PostgreSQL, etc.)
+        - ❌ Features requiring external APIs or network calls
+        - ❌ Heavy dependencies (>5MB installed size)
+        - ❌ Verifiable Credential revocation infrastructure
+        - ❌ DID Document service endpoints (use did:web externally)
+
+        **If your feature contradicts the "lite" philosophy, consider forking or using a different library.**
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission checklist
+      description: Please confirm the following before submitting
+      options:
+        - label: I have read docs/FUTURE_UPGRADES.md and understand the "lite" constraints
+          required: true
+        - label: This feature does NOT require external infrastructure (databases, servers, blockchains)
+          required: true
+        - label: This feature does NOT add heavy dependencies or increase binary size significantly
+          required: true
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I understand this may be rejected if it conflicts with the "lite" philosophy
+          required: true
+
+  - type: input
+    id: title
+    attributes:
+      label: Feature Title
+      description: One-line summary of the feature
+      placeholder: "Add TTL expiration support to JWS tokens"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      description: Which roadmap area does this align with? (See FUTURE_UPGRADES.md)
+      options:
+        - Hardening / Security (v0.2.0 roadmap)
+        - Verifiable Credentials (v0.3.0 roadmap)
+        - Key Management (v0.4.0 roadmap)
+        - Export/Import Formats
+        - Developer Experience / Documentation
+        - Performance Optimization
+        - Other (explain in detail below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: |
+        **REQUIRED:** What specific problem does this solve for edge/IoT/agent deployments?
+
+        Be concrete. Avoid:
+        - "It would be nice if..."
+        - "Other libraries have this..."
+        - Vague appeals to completeness
+
+        Instead, describe:
+        - The real-world scenario where didlite currently fails
+        - Why existing solutions (veramo, aries, etc.) don't work
+        - Impact on your deployment (cost, latency, reliability)
+      placeholder: |
+        **Current Problem:**
+        Our IoT sensors deploy to remote locations for 6+ months. Currently, if a sensor's private key is compromised, all previously signed telemetry remains valid forever. We cannot use traditional revocation (no network access), and we cannot use blockchain-based solutions (too heavy for ARM Cortex-M).
+
+        **Why didlite is the right tool:**
+        We chose didlite for its minimal footprint (critical for our 2MB firmware budget). Adding TTL expiration would limit the blast radius of a compromised key without requiring infrastructure.
+
+        **Why alternatives don't work:**
+        - veramo requires a database (not feasible on embedded devices)
+        - Status List 2021 requires network lookups (sensors are offline)
+        - Manual timestamp checking is error-prone and not standardized
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Concrete Use Case
+      description: |
+        **REQUIRED:** Describe your deployment scenario in detail.
+
+        Include:
+        - Number of agents/devices
+        - Hardware constraints (RAM, storage, CPU)
+        - Network conditions (offline, intermittent, bandwidth)
+        - Why this is an "edge/IoT/agent" use case (didlite's target market)
+      placeholder: |
+        **Deployment:**
+        - 500 Raspberry Pi Zero 2W sensors deployed in agricultural fields
+        - Each sensor: 512MB RAM, 4GB storage, runs Python 3.11
+        - Network: Cellular (2G/3G), 100KB/day data budget, 70% uptime
+        - Sensors sign soil telemetry hourly, upload batches weekly
+
+        **Current workaround:**
+        Manually adding {"exp": timestamp} to payload and checking in application code. This is fragile (easy to forget) and non-standard (breaks interop with other SSI tools).
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: |
+        How should this feature work? Provide a concrete API proposal.
+
+        - Show example code using the proposed API
+        - Explain how it maintains the "lite" philosophy
+        - Estimate complexity (lines of code, new dependencies)
+      placeholder: |
+        **Proposed API:**
+        ```python
+        # Create JWS with 1-hour expiration
+        token = create_jws(agent, payload, expires_in=3600)
+
+        # Verification automatically checks expiration
+        try:
+            result = verify_jws(token)
+        except ExpiredTokenError:
+            print("Token expired")
+        ```
+
+        **Implementation approach:**
+        - Add optional `expires_in` parameter to create_jws()
+        - Automatically add `exp` claim (standard JWT claim)
+        - Verify expiration in verify_jws() using system time
+        - No new dependencies (uses Python's time module)
+        - Estimated ~30 lines of code
+
+        **Maintains "lite" philosophy:**
+        - No infrastructure required (uses local system time)
+        - No new dependencies
+        - Optional feature (backward compatible)
+        - Aligns with standard JWT `exp` claim
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: |
+        **REQUIRED:** What other approaches did you consider?
+
+        - Could this be solved externally (wrapper library, application code)?
+        - Could a different library (veramo, aries) work if you adjust constraints?
+        - Why must this be in didlite core vs. a plugin/extension?
+      placeholder: |
+        **1. Application-level expiration checking:**
+        - Manually add `exp` to payload and check in app code
+        - Rejected: Error-prone, not standardized, breaks interop
+
+        **2. Use python-jose directly:**
+        - python-jose supports TTL, but no DID integration
+        - Rejected: Would need to reimplement DID resolution
+
+        **3. Switch to veramo:**
+        - Full-featured SSI with built-in expiration
+        - Rejected: Requires Node.js + database (200MB+ overhead), incompatible with our 2MB firmware budget
+
+        **4. Plugin/extension approach:**
+        - Create didlite-ttl external package
+        - Rejected: Expiration is common enough to warrant core support, and implementation is trivial (~30 lines)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency
+      description: What's your timeline for needing this feature?
+      options:
+        - Blocking production deployment (critical)
+        - Needed within 3 months (high)
+        - Needed within 6 months (medium)
+        - Nice to have eventually (low)
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribution
+    attributes:
+      label: Contribution Intent
+      description: Are you willing to contribute an implementation?
+      options:
+        - "Yes - I can submit a PR with tests"
+        - "Maybe - I need guidance on implementation"
+        - "No - I can only provide requirements"
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Backward Compatibility
+      description: |
+        How does this affect existing users?
+
+        - Will this break existing code?
+        - Is this opt-in or automatic?
+        - Does this change the JWS token format?
+      placeholder: |
+        **Fully backward compatible:**
+        - `expires_in` parameter is optional (defaults to None = no expiration)
+        - Existing tokens without `exp` claim continue to work
+        - Verification only checks `exp` if present
+        - No changes to token format (uses standard JWT claim)
+    validations:
+      required: true
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing Strategy
+      description: How should this feature be tested?
+      placeholder: |
+        **Unit tests:**
+        - Token creation with valid expiration
+        - Verification succeeds before expiration
+        - Verification fails after expiration
+        - Backward compat: tokens without `exp` still verify
+
+        **Integration tests:**
+        - Interop with python-jose (can they verify our tokens?)
+        - Clock skew handling (system time adjustments)
+
+        **Edge case tests:**
+        - Negative expiration values
+        - Zero expiration
+        - Extremely large expiration (year 2100)
+    validations:
+      required: false
+
+  - type: textarea
+    id: documentation
+    attributes:
+      label: Documentation Impact
+      description: What documentation changes are needed?
+      placeholder: |
+        - Update create_jws() docstring with expires_in parameter
+        - Add example to README showing TTL usage
+        - Update FUTURE_UPGRADES.md to mark TTL as completed
+        - Add migration guide for users manually handling expiration
+    validations:
+      required: false
+
+  - type: textarea
+    id: roadmap-alignment
+    attributes:
+      label: Roadmap Alignment
+      description: |
+        Which roadmap item does this relate to? (See docs/FUTURE_UPGRADES.md)
+
+        If not on the roadmap, explain why it should be prioritized over planned features.
+      placeholder: |
+        **Aligns with v0.2.0 Hardening (Q1 2026):**
+        - Specifically addresses "TTL Expiration: Add exp claim to JWS" (line 301)
+        - Listed as production readiness feature
+        - No scope creep (already planned)
+
+        **Should be prioritized because:**
+        This is already on the roadmap and has broad applicability for edge deployments.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any other relevant information (references, related issues, research)
+      placeholder: |
+        **Standards references:**
+        - JWT RFC 7519, Section 4.1.4 (exp claim): https://tools.ietf.org/html/rfc7519#section-4.1.4
+        - W3C VC Data Model expiration: https://www.w3.org/TR/vc-data-model/#expiration
+
+        **Related issues:**
+        - Issue #42 (key rotation depends on TTL)
+
+        **External examples:**
+        - python-jose implementation: [link]
+        - did-jwt (TypeScript) implementation: [link]
+    validations:
+      required: false
