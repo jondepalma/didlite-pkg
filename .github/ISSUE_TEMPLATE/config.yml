@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/jondepalma/didlite-pkg/blob/main/README.md
+    about: Read the documentation before opening an issue
+  - name: Roadmap & Philosophy
+    url: https://github.com/jondepalma/didlite-pkg/blob/main/docs/FUTURE_UPGRADES.md
+    about: Understand the "lite" philosophy and future plans
+  - name: Questions & Discussions
+    url: https://github.com/jondepalma/didlite-pkg/issues
+    about: Ask questions about usage (search existing issues first)
