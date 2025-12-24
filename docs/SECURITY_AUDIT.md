@@ -27,8 +27,14 @@ This is **preparation work** for an external audit, not the audit itself. The ex
 - [ ] Check Fernet encryption usage in FileKeyStore
 - [ ] Verify no weak cryptographic algorithms are used
 - [ ] Confirm proper use of constant-time comparisons where needed
+- [ ] **[CRITICAL]** Review bytes object handling at PyNaCl boundary (C pointer safety)
+- [ ] Verify no buffer overflows possible in libsodium integration
+- [ ] Check that all bytes passed to `nacl.signing` are properly validated
 
 **Files to review:** `didlite/core.py`, `didlite/keystore.py`
+
+**Memory Safety Focus:**
+While Python is memory-safe, PyNaCl wraps libsodium (C library). Review how bytes objects are managed before being passed to C pointers to prevent memory corruption.
 
 **Reference standards:**
 - NIST SP 800-186 (Digital Signature Standard)
@@ -113,7 +119,39 @@ This is **preparation work** for an external audit, not the audit itself. The ex
 
 ### Phase 3: Security Testing 🧪
 
-**Objective:** Add security-focused tests beyond functional coverage.
+**Objective:** Add security-focused tests beyond functional coverage, including dynamic analysis and fuzzing.
+
+#### 3.0 Fuzzing & Property-Based Testing **[CRITICAL - NEW]**
+- [ ] **Setup Hypothesis** for property-based testing
+- [ ] **Fuzz `resolve_did_to_key()`** with random/malformed inputs
+  - Test with garbage strings: `did:key:!!!!`, `did:key:`, `did:`, empty strings
+  - Test with oversized inputs (1MB+ strings)
+  - Test with unicode/emoji/special characters
+  - Verify always raises `ValueError` cleanly (no crashes, no unexpected exceptions)
+- [ ] **Fuzz JWS parsing** with malformed tokens
+  - Invalid base64 encoding
+  - Missing segments (only 1 or 2 dots)
+  - Malformed JSON in header/payload
+  - Oversized tokens
+- [ ] **Fuzz multibase/multicodec decoding**
+  - Invalid base58 characters
+  - Wrong multicodec prefixes
+  - Truncated keys (not 32 bytes)
+- [ ] **Fuzz seed validation**
+  - Test seeds of all sizes: 0, 1, 31, 33, 1000, 1MB
+  - Test non-bytes inputs (if not type-checked)
+
+**Tools:**
+- `hypothesis` - Python property-based testing framework
+- `atheris` - Coverage-guided fuzzing (optional, advanced)
+
+**Success Criteria:**
+- No crashes, hangs, or unexpected exceptions from ANY malformed input
+- All error paths cleanly raise documented exception types
+- 100% code coverage of error-handling branches
+
+**Why This Matters:**
+External auditors WILL aggressively fuzz your parsing logic. If you don't find crashes first, they will. This is the #1 way audits find critical bugs in crypto libraries.
 
 #### 3.1 Malformed Input Tests
 - [ ] Test malformed DID formats
@@ -170,15 +208,33 @@ safety check
 
 **Output:** Add "Dependency Security" section
 
-#### 4.3 Supply Chain Security
+#### 4.3 Supply Chain Security & SLSA Compliance **[ENHANCED]**
+- [ ] **Achieve SLSA Level 3** for build provenance
+- [ ] **Migrate to OIDC for PyPI publishing** (eliminate long-lived API tokens)
+  - Configure GitHub Actions to use Trusted Publishing
+  - Remove any hardcoded PyPI tokens from secrets
+  - Document OIDC setup in CI/CD documentation
+- [ ] **Generate SBOM** (Software Bill of Materials) for each release
+  - Use `cyclonedx-bom` or `syft` to generate SBOM
+  - Include SBOM in release artifacts
+  - Automate SBOM generation in CI pipeline
 - [ ] Verify package signatures (if available)
 - [ ] Check for typosquatting in dependencies
 - [ ] Review transitive dependencies
 - [ ] Document build reproducibility
+- [ ] **Audit GitHub Actions permissions**
+  - Verify minimal permissions per workflow
+  - Check for write access to PyPI/repository
+  - Review token scopes
 
 **Tools:**
 - `pip download --no-binary :all:`
 - Manual inspection of wheel contents
+- [cyclonedx-bom](https://github.com/CycloneDX/cyclonedx-python) for SBOM generation
+- [slsa-verifier](https://github.com/slsa-framework/slsa-verifier) for build verification
+
+**Why This Matters:**
+A compromised GitHub token with PyPI write access allows attackers to upload malicious versions. OIDC + SLSA Level 3 prevents this attack vector and provides verifiable build provenance.
 
 ### Phase 5: Compliance & Standards 📋
 
@@ -316,12 +372,40 @@ When ready for external audit, consider:
 - [safety](https://github.com/pyupio/safety) - Python dependency checker
 - [bandit](https://github.com/PyCQA/bandit) - Python security linter
 
+## Critical Gaps Addressed (2025-12-23 Update)
+
+This audit plan was enhanced based on gap analysis to include:
+
+### A. Dynamic Analysis (Fuzzing)
+**Gap:** Original plan focused on static code review, missing aggressive input validation testing.
+
+**Fix:** Added Phase 3.0 - Fuzzing & Property-Based Testing
+- Fuzzes all parsing logic (`resolve_did_to_key`, JWS parsing, multibase/multicodec)
+- Uses Hypothesis for property-based testing
+- Ensures no crashes on malformed input (critical for external audit)
+
+### B. Supply Chain Security (SLSA)
+**Gap:** No protection against compromised build/release process.
+
+**Fix:** Enhanced Phase 4.3 with SLSA Level 3 requirements
+- OIDC for PyPI publishing (no long-lived tokens)
+- SBOM generation for transparency
+- GitHub Actions permission audit
+
+### C. Memory Safety at PyNaCl Boundary
+**Gap:** No explicit review of bytes handling at Python/C boundary.
+
+**Fix:** Added to Phase 1.1 - Cryptographic Implementation Review
+- Explicit checks for buffer handling in `didlite/core.py`
+- Verification of libsodium integration safety
+
 ## Status Tracking
 
 **Current Phase:** Phase 1 (Internal Code Review)
-**Completion:** 0% (0/41 items completed)
+**Completion:** 0% (0/54 items completed) - increased from 41 items
 **Last Updated:** 2025-12-23
-**Next Review:** TBD
+**Gap Analysis Applied:** 2025-12-23
+**Next Review:** After Phase 1 completion
 
 ---
 
