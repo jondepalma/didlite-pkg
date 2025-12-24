@@ -87,42 +87,48 @@ Test dependencies:
 
 Requires Python 3.8+
 
-## Gitea Workflow with Tea CLI
+## GitHub Workflow with gh CLI
 
-This project uses Gitea for issue tracking and pull requests. The `tea` CLI is configured for seamless workflow.
+This project uses GitHub for issue tracking, pull requests, and CI/CD. The `gh` CLI is configured for seamless workflow.
 
-### Tea CLI Configuration
+### gh CLI Setup
 
-**Important**: The tea CLI is configured to work with the git remote. The configuration is in `~/.config/tea/config.yml`:
-- **URL**: `http://git.jondepalma.net` (external Gitea URL via Traefik ingress)
-- **SSH Host**: `gitea` (matches the git remote `git@gitea:jondepalma/didlite-pkg.git`)
-- **User**: `jondepalma`
+**Installation** (Raspberry Pi / Debian-based systems):
+```bash
+# Install GitHub CLI
+curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+sudo apt update && sudo apt install -y gh
+
+# Authenticate
+gh auth login
+```
 
 **Prerequisites**:
-- The tea CLI auto-detects the repository from git remotes (no need for `-r` flag when in repo directory)
-- Gitea is accessible via external URL (no port-forwarding required)
+- The `gh` CLI auto-detects the repository from git remotes (no need for `-R` flag when in repo directory)
+- SSH authentication recommended (same key can be used as Gitea)
 
 ### Issue Management
 
 **Create an issue**:
 ```bash
-tea issues create --title "Issue title" --description "Detailed description of the issue"
+gh issue create --title "Issue title" --body "Detailed description of the issue"
 ```
 
 **List issues**:
 ```bash
-tea issues list              # List open issues
-tea issues list --state all  # List all issues (open and closed)
+gh issue list              # List open issues
+gh issue list --state all  # List all issues (open and closed)
 ```
 
 **Close an issue**:
 ```bash
-tea issues close <issue_number>
+gh issue close <issue_number>
 ```
 
 **View issue details**:
 ```bash
-tea issues <issue_number>
+gh issue view <issue_number>
 ```
 
 ### Pull Request Workflow
@@ -150,16 +156,21 @@ Resolves #<issue_number>
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ```
 
-3. **Push to origin/dev**:
+3. **Push to origin/dev** (and backup to Gitea):
 ```bash
-git push origin dev
+# Push to both GitHub and Gitea backup
+git push-all dev
+
+# Or push individually:
+git push origin dev           # GitHub (primary)
+git push gitea-backup dev     # Gitea (backup)
 ```
 
 4. **Create pull request**:
 ```bash
-tea pulls create --base main --head dev \
+gh pr create --base main --head dev \
   --title "Brief PR title" \
-  --description "## Summary
+  --body "## Summary
 - What changed
 - Why it changed
 - Impact
@@ -172,13 +183,18 @@ tea pulls create --base main --head dev \
 
 **List pull requests**:
 ```bash
-tea pulls list
-tea pulls list --state all
+gh pr list
+gh pr list --state all
 ```
 
 **View PR details**:
 ```bash
-tea pulls <pr_number>
+gh pr view <pr_number>
+```
+
+**Merge a PR**:
+```bash
+gh pr merge <pr_number>
 ```
 
 ### Git Workflow Best Practices
@@ -187,6 +203,17 @@ tea pulls <pr_number>
 - `main`: Production-ready code
 - `dev`: Development branch (default for new features/fixes)
 - Feature branches: Created from `dev` as needed
+
+**Remote Strategy**:
+- `origin`: GitHub (primary - used for CI/CD, issues, PRs)
+- `gitea-backup`: Gitea (backup - manual sync via `git push-all`)
+
+**Push Alias**:
+```bash
+# Push to both remotes at once
+git push-all main
+git push-all dev
+```
 
 **Commit Message Format**:
 ```
@@ -225,22 +252,38 @@ pytest --cov=didlite --cov-report=term-missing
 
 **For bug fixes**:
 1. Run tests to identify failures
-2. Create Gitea issues for bugs found (instead of immediately fixing)
+2. Create GitHub issues for bugs found (instead of immediately fixing)
 3. Fix bugs and reference issue numbers in commits
 4. Verify all tests pass before pushing
 
-### Troubleshooting Tea CLI
+### Troubleshooting gh CLI
 
-**If tea can't detect the repository**:
+**If gh can't detect the repository**:
 - Ensure you're in the repository directory
-- Verify git remote matches tea config: `git remote -v`
-- Check tea config: `cat ~/.config/tea/config.yml`
-- The `ssh_host` in tea config must match the git remote hostname (currently: `gitea`)
+- Verify git remote: `git remote -v` (should show `origin` pointing to GitHub)
+- Check authentication: `gh auth status`
 
-**If tea commands fail**:
-- Verify Gitea is accessible: `curl -I http://git.jondepalma.net`
-- Check tea login: `tea login list`
-- Verify token is valid in Gitea web UI (Settings → Applications)
+**If gh commands fail**:
+- Re-authenticate: `gh auth logout && gh auth login`
+- Verify SSH key is added to GitHub: `gh ssh-key list`
+- Test SSH connection: `ssh -T git@github.com`
+
+### Labels and Milestones
+
+**Create labels** (one-time setup):
+```bash
+# See docs/GH_CLI_SETUP.md for full label creation commands
+gh label create "bug" --description "Something isn't working" --color "D73A4A"
+gh label create "enhancement" --description "New feature or request" --color "A2EEEF"
+# ... (see migration documentation)
+```
+
+**Create milestones**:
+```bash
+gh milestone create "v0.2.0 - Hardening" \
+  --description "Security audit preparation and production readiness" \
+  --due-date "2025-12-31"
+```
 
 ## Important Implementation Notes
 
