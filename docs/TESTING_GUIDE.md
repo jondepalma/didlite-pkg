@@ -431,6 +431,27 @@ elapsed = time.time() - start
 print(f"Created 100 tokens in {elapsed:.2f}s ({elapsed*10:.2f}ms each)")
 ```
 
+### Performance and Benchmark Results 2025-12-23
+
+***Environment: Raspberry Pi 5 8GB***
+
+**Performance Test Results**
+
+Identity Generation:
+- Generated 100 identities in 0.01s
+- Average: **0.09ms per identity**
+
+Token Creation:
+- Created 100 tokens in 0.01s
+- Average: **0.12ms per token**
+
+**Outcome**
+The didlite library is extremely fast for cryptographic operations:
+- ~11,000 identities/second generation rate
+- ~8,300 tokens/second signing rate
+
+This demonstrates the library's fitness for edge/IoT deployments where performance matters. The Ed25519 algorithm combined with PyNaCl's libsodium wrapper provides excellent performance even on ARM64 hardware.
+
 ## Summary
 
 - **101 tests** covering all functionality
