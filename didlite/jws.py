@@ -18,6 +18,29 @@ import base64
 from .core import AgentIdentity, resolve_did_to_key
 from nacl.exceptions import BadSignatureError
 
+
+def _b64url_decode(data: str) -> bytes:
+    """
+    Decode base64url-encoded data with proper padding calculation.
+
+    Base64 encoding requires padding to multiples of 4 characters.
+    This function calculates the correct padding needed.
+
+    Args:
+        data: Base64url-encoded string (without padding)
+
+    Returns:
+        Decoded bytes
+
+    Reference:
+        RFC 4648 (Base64 encoding): https://tools.ietf.org/html/rfc4648
+        SECURITY_FINDINGS.md HIGH-2, Issue #7
+    """
+    # Calculate padding needed (0-3 '=' chars)
+    padding_needed = (4 - len(data) % 4) % 4
+    padded_data = data + ('=' * padding_needed)
+    return base64.urlsafe_b64decode(padded_data)
+
 def create_jws(agent: AgentIdentity, payload: dict, expires_in: int = None, exp: int = None) -> str:
     """
     Creates a compact JWS (JSON Web Signature).
@@ -82,10 +105,19 @@ def verify_jws(token: str) -> dict:
         Exception: If signature is invalid or token is expired
     """
     try:
-        header_segment, payload_segment, crypto_segment = token.split('.')
+        # SECURITY: Validate token format before unpacking
+        # Reference: SECURITY_FINDINGS.md HIGH-1, Issue #6
+        segments = token.split('.')
+        if len(segments) != 3:
+            raise ValueError(
+                f"Invalid JWS format: expected 3 segments (header.payload.signature), "
+                f"got {len(segments)}"
+            )
+
+        header_segment, payload_segment, crypto_segment = segments
 
         # 1. Decode Header to find the 'kid' (Key ID / DID)
-        header_data = base64.urlsafe_b64decode(header_segment + "==")
+        header_data = _b64url_decode(header_segment)
         header = json.loads(header_data)
         signer_did = header.get('kid')
 
@@ -94,12 +126,12 @@ def verify_jws(token: str) -> dict:
 
         # 3. Verify Signature
         signing_input = (header_segment + "." + payload_segment).encode()
-        signature = base64.urlsafe_b64decode(crypto_segment + "==")
+        signature = _b64url_decode(crypto_segment)
 
         verify_key.verify(signing_input, signature)
 
         # 4. Decode Payload
-        payload_data = base64.urlsafe_b64decode(payload_segment + "==")
+        payload_data = _b64url_decode(payload_segment)
         payload = json.loads(payload_data)
 
         # 5. Check Expiration (if present)
