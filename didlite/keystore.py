@@ -1,0 +1,277 @@
+# Copyright 2025 Jon DePalma
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""Key storage backends for persistent identity management"""
+
+from abc import ABC, abstractmethod
+import os
+import json
+import base64
+from typing import Optional
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+
+class KeyStore(ABC):
+    """
+    Abstract base class for key storage backends.
+
+    Implementations provide different storage mechanisms for Ed25519 seeds,
+    enabling persistent identity across application restarts.
+    """
+
+    @abstractmethod
+    def save_seed(self, identifier: str, seed: bytes) -> None:
+        """
+        Save a 32-byte Ed25519 seed.
+
+        Args:
+            identifier: Unique identifier for this seed (e.g., agent name, DID)
+            seed: 32-byte Ed25519 seed
+
+        Raises:
+            ValueError: If seed is not exactly 32 bytes
+        """
+        pass
+
+    @abstractmethod
+    def load_seed(self, identifier: str) -> Optional[bytes]:
+        """
+        Load a previously saved seed.
+
+        Args:
+            identifier: Unique identifier for the seed to load
+
+        Returns:
+            32-byte Ed25519 seed, or None if not found
+
+        Raises:
+            ValueError: If stored seed is corrupted or invalid
+        """
+        pass
+
+    @abstractmethod
+    def delete_seed(self, identifier: str) -> bool:
+        """
+        Delete a saved seed.
+
+        Args:
+            identifier: Unique identifier for the seed to delete
+
+        Returns:
+            True if seed was deleted, False if it didn't exist
+        """
+        pass
+
+
+class MemoryKeyStore(KeyStore):
+    """
+    In-memory key storage for testing and ephemeral use.
+
+    Seeds are stored in memory and lost when the process exits.
+    Useful for testing or temporary identities.
+    """
+
+    def __init__(self):
+        self._storage = {}
+
+    def save_seed(self, identifier: str, seed: bytes) -> None:
+        if len(seed) != 32:
+            raise ValueError(f"Seed must be exactly 32 bytes, got {len(seed)}")
+        self._storage[identifier] = seed
+
+    def load_seed(self, identifier: str) -> Optional[bytes]:
+        return self._storage.get(identifier)
+
+    def delete_seed(self, identifier: str) -> bool:
+        if identifier in self._storage:
+            del self._storage[identifier]
+            return True
+        return False
+
+
+class EnvKeyStore(KeyStore):
+    """
+    Environment variable key storage for containerized deployments.
+
+    Seeds are stored in environment variables (base64-encoded).
+    Suitable for Docker, Kubernetes, and cloud deployments where
+    environment variables are the standard secret management approach.
+
+    Security Note: Environment variables are accessible to the process
+    and may appear in process listings. Use with appropriate container
+    security (secrets management, restricted process access).
+    """
+
+    def __init__(self, prefix: str = "DIDLITE_SEED_"):
+        """
+        Initialize environment variable key store.
+
+        Args:
+            prefix: Prefix for environment variable names (default: "DIDLITE_SEED_")
+        """
+        self.prefix = prefix
+
+    def save_seed(self, identifier: str, seed: bytes) -> None:
+        if len(seed) != 32:
+            raise ValueError(f"Seed must be exactly 32 bytes, got {len(seed)}")
+
+        # Encode seed as base64 for environment variable storage
+        encoded = base64.b64encode(seed).decode('ascii')
+        env_var = f"{self.prefix}{identifier.upper()}"
+        os.environ[env_var] = encoded
+
+    def load_seed(self, identifier: str) -> Optional[bytes]:
+        env_var = f"{self.prefix}{identifier.upper()}"
+        encoded = os.environ.get(env_var)
+
+        if encoded is None:
+            return None
+
+        try:
+            seed = base64.b64decode(encoded)
+            if len(seed) != 32:
+                raise ValueError(f"Stored seed must be 32 bytes, got {len(seed)}")
+            return seed
+        except Exception as e:
+            raise ValueError(f"Failed to decode seed from environment variable {env_var}: {e}")
+
+    def delete_seed(self, identifier: str) -> bool:
+        env_var = f"{self.prefix}{identifier.upper()}"
+        if env_var in os.environ:
+            del os.environ[env_var]
+            return True
+        return False
+
+
+class FileKeyStore(KeyStore):
+    """
+    Encrypted file-based key storage for local deployments.
+
+    Seeds are stored in encrypted files on disk, suitable for edge devices,
+    development machines, and environments with persistent filesystem storage.
+
+    Encryption uses Fernet (AES-128-CBC with HMAC) derived from a password
+    via PBKDF2-SHA256 with 480,000 iterations.
+
+    Security Notes:
+    - Password must be provided and stored securely (e.g., separate config file, HSM)
+    - File permissions should restrict access to the application user only
+    - Not suitable for scenarios requiring hardware-backed key storage
+    """
+
+    def __init__(self, storage_dir: str, password: str, iterations: int = 480000):
+        """
+        Initialize file-based key store with encryption.
+
+        Args:
+            storage_dir: Directory path for storing encrypted seed files
+            password: Password/passphrase for encrypting seeds
+            iterations: PBKDF2 iterations (default: 480000 per OWASP 2023)
+
+        Raises:
+            ValueError: If password is empty or storage_dir cannot be created
+        """
+        if not password:
+            raise ValueError("Password cannot be empty for FileKeyStore")
+
+        self.storage_dir = storage_dir
+        self.password = password.encode('utf-8')
+        self.iterations = iterations
+
+        # Create storage directory if it doesn't exist
+        os.makedirs(storage_dir, mode=0o700, exist_ok=True)
+
+    def _get_file_path(self, identifier: str) -> str:
+        """Get the file path for a given identifier"""
+        # Sanitize identifier to prevent path traversal
+        safe_id = identifier.replace('/', '_').replace('\\', '_').replace('..', '_')
+        return os.path.join(self.storage_dir, f"{safe_id}.enc")
+
+    def _derive_key(self, salt: bytes) -> bytes:
+        """Derive encryption key from password using PBKDF2"""
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
+            length=32,
+            salt=salt,
+            iterations=self.iterations,
+        )
+        return base64.urlsafe_b64encode(kdf.derive(self.password))
+
+    def save_seed(self, identifier: str, seed: bytes) -> None:
+        if len(seed) != 32:
+            raise ValueError(f"Seed must be exactly 32 bytes, got {len(seed)}")
+
+        # Generate random salt for PBKDF2
+        salt = os.urandom(16)
+
+        # Derive encryption key
+        key = self._derive_key(salt)
+        fernet = Fernet(key)
+
+        # Encrypt seed
+        encrypted_seed = fernet.encrypt(seed)
+
+        # Store salt and encrypted seed together
+        data = {
+            'salt': base64.b64encode(salt).decode('ascii'),
+            'encrypted_seed': base64.b64encode(encrypted_seed).decode('ascii')
+        }
+
+        file_path = self._get_file_path(identifier)
+
+        # Write with restrictive permissions (owner read/write only)
+        with open(file_path, 'w') as f:
+            json.dump(data, f)
+
+        # Ensure file has secure permissions
+        os.chmod(file_path, 0o600)
+
+    def load_seed(self, identifier: str) -> Optional[bytes]:
+        file_path = self._get_file_path(identifier)
+
+        if not os.path.exists(file_path):
+            return None
+
+        try:
+            with open(file_path, 'r') as f:
+                data = json.load(f)
+
+            # Decode salt and encrypted seed
+            salt = base64.b64decode(data['salt'])
+            encrypted_seed = base64.b64decode(data['encrypted_seed'])
+
+            # Derive decryption key
+            key = self._derive_key(salt)
+            fernet = Fernet(key)
+
+            # Decrypt seed
+            seed = fernet.decrypt(encrypted_seed)
+
+            if len(seed) != 32:
+                raise ValueError(f"Decrypted seed must be 32 bytes, got {len(seed)}")
+
+            return seed
+
+        except Exception as e:
+            raise ValueError(f"Failed to load seed from {file_path}: {e}")
+
+    def delete_seed(self, identifier: str) -> bool:
+        file_path = self._get_file_path(identifier)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            return True
+        return False
