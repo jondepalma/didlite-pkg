@@ -91,36 +91,60 @@ While Python is memory-safe, PyNaCl wraps libsodium (C library). Review how byte
 - File paths in exceptions
 - Stack traces with sensitive variables
 
-### Phase 2: Security Documentation 📝
+### Phase 2: Security Documentation ✅
 
 **Objective:** Document security architecture and assumptions.
 
-#### 2.1 Create SECURITY.md Policy
-- [ ] Define vulnerability reporting process
-- [ ] Document security contact information
-- [ ] Establish disclosure timeline policy
-- [ ] Define severity classification
-- [ ] Document patching and release process
+**Status:** COMPLETE (2025-12-25)
+**Documentation:** [THREAT_MODEL.md](THREAT_MODEL.md), [CRYPTO_RATIONALE.md](CRYPTO_RATIONALE.md), [.github/SECURITY.md](../.github/SECURITY.md)
+**Result:** Comprehensive security documentation ready for external audit
 
-**Template:** GitHub Security Policy standard
+#### 2.1 Create SECURITY.md Policy ✅
+- [x] Define vulnerability reporting process
+- [x] Document security contact information
+- [x] Establish disclosure timeline policy
+- [x] Define severity classification
+- [x] Document patching and release process
 
-#### 2.2 Document Threat Model
-- [ ] Identify assets (private keys, DIDs, seeds)
-- [ ] Define trust boundaries (process, file system, network)
-- [ ] List threat actors (malicious users, attackers)
-- [ ] Document attack surfaces (JWS parsing, DID resolution, file storage)
-- [ ] Define security assumptions (OS security, PyNaCl correctness)
+**Status:** ✅ COMPLETE (PR #3, merged 2024-12-24)
+**Location:** [.github/SECURITY.md](../.github/SECURITY.md)
 
-**Output:** Add section to SECURITY_AUDIT.md or separate THREAT_MODEL.md
+#### 2.2 Document Threat Model ✅
+- [x] Identify assets (private keys, DIDs, seeds)
+- [x] Define trust boundaries (process, file system, network)
+- [x] List threat actors (malicious users, attackers)
+- [x] Document attack surfaces (JWS parsing, DID resolution, file storage)
+- [x] Define security assumptions (OS security, PyNaCl correctness)
 
-#### 2.3 Document Cryptographic Choices
-- [ ] Explain why Ed25519 (not RSA/ECDSA)
-- [ ] Document seed generation approach
-- [ ] Justify PBKDF2 parameters (iterations, salt size)
-- [ ] Explain Fernet choice for file encryption
-- [ ] Document lack of key rotation (by design)
+**Status:** ✅ COMPLETE (2025-12-25)
+**Output:** [docs/THREAT_MODEL.md](THREAT_MODEL.md) (comprehensive 850+ line threat model)
 
-**Output:** Add "Cryptographic Design Rationale" section
+**Key Deliverables:**
+- 5 trust boundaries identified and documented
+- 5 threat actor profiles with capabilities and goals
+- 5 attack surfaces analyzed with mitigations
+- 5 threat scenarios with impact/likelihood assessment
+- 8 security assumptions explicitly stated
+- 7 out-of-scope threats clearly defined
+
+#### 2.3 Document Cryptographic Choices ✅
+- [x] Explain why Ed25519 (not RSA/ECDSA)
+- [x] Document seed generation approach
+- [x] Justify PBKDF2 parameters (iterations, salt size)
+- [x] Explain Fernet choice for file encryption
+- [x] Document lack of key rotation (by design)
+
+**Status:** ✅ COMPLETE (2025-12-25)
+**Output:** [docs/CRYPTO_RATIONALE.md](CRYPTO_RATIONALE.md) (comprehensive 750+ line rationale)
+
+**Key Deliverables:**
+- Detailed comparison tables (Ed25519 vs RSA vs ECDSA)
+- PyNaCl library choice justification
+- Randomness source analysis
+- DID:Key encoding explanation (multicodec + multibase)
+- JWS format design decisions
+- PBKDF2 iteration count evolution (480k → 600k)
+- Future considerations (PQC, HSM, Argon2id, did:web)
 
 ### Phase 3: Security Testing 🧪
 
@@ -314,18 +338,18 @@ Before external audit engagement:
 ### Mandatory Requirements
 - ✅ **No critical or high vulnerabilities in internal review** - ACHIEVED (Phase 1 complete, all CRIT/HIGH fixed)
 - ⏳ All dependencies up-to-date with no known CVEs - PENDING (Phase 4)
-- ✅ **SECURITY.md policy published** - ACHIEVED (PR #3)
-- ⏳ Threat model documented - PENDING (Phase 2)
+- ✅ **SECURITY.md policy published** - ACHIEVED (PR #3, merged 2024-12-24)
+- ✅ **Threat model documented** - ACHIEVED (Phase 2.2, THREAT_MODEL.md created 2025-12-25)
 - ✅ **98%+ test coverage maintained** - ACHIEVED (128/128 tests passing)
 - ✅ **Security-focused tests added** - ACHIEVED (27 new security tests)
-- 🔄 All security documentation complete - IN PROGRESS (Phase 1 docs complete, Phase 2-6 pending)
+- 🔄 All security documentation complete - IN PROGRESS (Phase 1-2 complete, Phase 3-6 pending)
 
 ### Recommended Requirements
-- 📋 Cryptographic choices documented with rationale
-- 📋 Attack scenario tests comprehensive
-- 📋 Compliance with W3C DID and JWT/JWS standards verified
-- 📋 Audit package prepared
-- 📋 Code annotations for security-sensitive sections
+- ✅ **Cryptographic choices documented with rationale** - ACHIEVED (Phase 2.3, CRYPTO_RATIONALE.md created 2025-12-25)
+- ⏳ Attack scenario tests comprehensive - PENDING (Phase 3)
+- ⏳ Compliance with W3C DID and JWT/JWS standards verified - PENDING (Phase 5)
+- ⏳ Audit package prepared - PENDING (Phase 6)
+- ⏳ Code annotations for security-sensitive sections - PENDING (Phase 6)
 
 ## Timeline
 
@@ -406,11 +430,12 @@ This audit plan was enhanced based on gap analysis to include:
 
 ## Status Tracking
 
-**Current Phase:** Phase 1 COMPLETE ✅, Ready for Phase 2
-**Completion:** Phase 1: 100% (33/33 items completed)
+**Current Phase:** Phase 2 COMPLETE ✅, Ready for Phase 3
+**Completion:** Phase 1: 100% (33/33 items), Phase 2: 100% (3/3 sub-phases)
 **Last Updated:** 2025-12-25
 **Gap Analysis Applied:** 2025-12-23
 **Phase 1 Completion:** 2025-12-25
+**Phase 2 Completion:** 2025-12-25
 
 ### Phase 1 Results
 
@@ -434,14 +459,54 @@ This audit plan was enhanced based on gap analysis to include:
 **Commits:** 64a2226 (860 insertions, 27 security tests added)
 **Pull Request:** #8 (merged to main)
 
+### Phase 2 Results
+
+**Total Deliverables:** 2 comprehensive documentation files + existing SECURITY.md
+
+**Documentation Created:**
+- [docs/THREAT_MODEL.md](THREAT_MODEL.md) - Comprehensive threat model (850+ lines)
+  - 5 trust boundaries (Python↔C, Library↔App, Library↔FileSystem, Library↔Network, Library↔Env)
+  - 5 threat actors (Network, Malicious Dev, FileSystem, Memory, Timing attackers)
+  - 5 attack surfaces (DID resolution, JWS verification, seed import, FileKeyStore, JWK/PEM)
+  - 5 detailed threat scenarios with impact/likelihood assessment
+  - 8 security assumptions explicitly documented
+  - 7 out-of-scope threats clearly defined
+- [docs/CRYPTO_RATIONALE.md](CRYPTO_RATIONALE.md) - Cryptographic design rationale (750+ lines)
+  - Ed25519 vs RSA vs ECDSA comparison (security, performance, simplicity)
+  - PyNaCl library choice justification
+  - Seed generation and randomness analysis
+  - DID:Key encoding explanation (multicodec 0xed01 + base58btc)
+  - JWS format design (EdDSA-only, no algorithm negotiation)
+  - PBKDF2 parameters (600k iterations, 16-byte salt, HMAC-SHA256)
+  - Future considerations (PQC, HSM, Argon2id, JWE, did:web)
+- [.github/SECURITY.md](../.github/SECURITY.md) - Vulnerability disclosure policy (completed in PR #3)
+  - 90-day coordinated disclosure timeline
+  - Security best practices for library users
+  - Known limitations and threat model summary
+
+**Total Documentation:** ~3,600 lines of comprehensive security documentation (Phase 1 + Phase 2)
+
+**Security Posture Impact:**
+- ✅ Threat model provides clear risk assessment for auditors
+- ✅ Cryptographic rationale justifies all algorithm choices
+- ✅ Security assumptions explicitly stated (reduces audit scope creep)
+- ✅ Out-of-scope threats clearly defined (prevents unrealistic expectations)
+
+**Readiness for External Audit:**
+- ✅ Complete threat model available for audit scoping
+- ✅ Cryptographic design decisions documented with references
+- ✅ Vulnerability disclosure process established
+- ✅ All mandatory Phase 2 requirements met
+
 ### Next Steps
 
 **Immediate:**
+- ✅ Phase 1 complete (code review, vulnerability fixes)
+- ✅ Phase 2 complete (threat model, cryptographic rationale, SECURITY.md)
 - Review and prioritize deferred issues (#9-#18)
-- Decide whether to proceed with Phase 2-6 or focus on v0.2.0 release
+- Decide whether to proceed with Phase 3-6 or focus on v0.2.0 release
 
 **Optional Continuation:**
-- Phase 2: Security Documentation (threat model, cryptographic rationale)
 - Phase 3: Security Testing (fuzzing, property-based tests, attack scenarios)
 - Phase 4: Dependency Security (pip-audit, SLSA Level 3)
 - Phase 5: Compliance & Standards (W3C DID, JWT/JWS, OWASP)
