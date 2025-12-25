@@ -6,7 +6,7 @@ This document outlines the security audit preparation process for didlite v0.2.0
 
 **Goal:** Prepare the codebase for external security audit by conducting internal review, fixing identified issues, and documenting security considerations.
 
-**Status:** In Progress (Issue #8)
+**Status:** In Progress (Issue #1)
 **Priority:** HIGH - Required before production adoption and v1.0.0 release
 **Target Completion:** v0.2.0 milestone
 

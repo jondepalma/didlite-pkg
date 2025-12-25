@@ -62,7 +62,13 @@ class AgentIdentity:
         self.identifier = identifier
 
         # Determine seed source
-        if seed:
+        if seed is not None:
+            # SECURITY: Validate seed before passing to PyNaCl C boundary
+            # Reference: SECURITY_FINDINGS.md CRIT-1, Issue #4
+            if not isinstance(seed, bytes):
+                raise TypeError("seed must be bytes")
+            if len(seed) != 32:
+                raise ValueError(f"seed must be exactly 32 bytes, got {len(seed)}")
             # Use provided seed
             self.signing_key = SigningKey(seed, encoder=RawEncoder)
             # Optionally save to keystore if configured
@@ -263,15 +269,38 @@ def resolve_did_to_key(did: str) -> VerifyKey:
     """
     if not did.startswith("did:key:"):
         raise ValueError("Invalid DID format. Must start with did:key:")
-    
+
     # Extract the multibase string (everything after 'did:key:')
     mb_string = did.split(":", 2)[2]
-    
+
     # Decode Multibase
     decoded_bytes = multibase.decode(mb_string)
-    
-    # Remove the 2-byte Multicodec prefix (0xed01)
-    # In a full lib, we would check these bytes to ensure it's Ed25519
+
+    # SECURITY: Validate minimum length (2-byte prefix + 32-byte key = 34 total)
+    # Reference: SECURITY_FINDINGS.md CRIT-3, Issue #5
+    if len(decoded_bytes) < 34:
+        raise ValueError(
+            f"Invalid DID: decoded key must be at least 34 bytes "
+            f"(2 prefix + 32 key), got {len(decoded_bytes)}"
+        )
+
+    # SECURITY: Validate multicodec prefix is Ed25519 (0xed01)
+    # Reference: SECURITY_FINDINGS.md CRIT-4, Issue #5
+    if decoded_bytes[:2] != ED25519_CODEC:
+        raise ValueError(
+            f"Invalid DID: expected Ed25519 multicodec prefix 0xed01, "
+            f"got 0x{decoded_bytes[:2].hex()}"
+        )
+
+    # Remove the 2-byte Multicodec prefix
     raw_pub_key = decoded_bytes[2:]
-    
+
+    # SECURITY: Validate key size before passing to PyNaCl C boundary
+    # Reference: SECURITY_FINDINGS.md CRIT-2, Issue #5
+    if len(raw_pub_key) != 32:
+        raise ValueError(
+            f"Invalid DID: Ed25519 public key must be 32 bytes, "
+            f"got {len(raw_pub_key)}"
+        )
+
     return VerifyKey(raw_pub_key, encoder=RawEncoder)
