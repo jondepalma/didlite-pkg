@@ -247,6 +247,41 @@ class TestFileKeyStore:
         loaded = store.load_seed("../../../etc/passwd")
         assert loaded == seed
 
+    def test_path_traversal_comprehensive(self):
+        """Comprehensive path traversal protection tests (Issue #10)"""
+        store = FileKeyStore(self.test_dir, password="test_password")
+        seed = os.urandom(32)
+
+        # Test various attack patterns
+        attack_patterns = [
+            ("../../../etc/passwd", "passwd.enc"),
+            ("/tmp/evil", "evil.enc"),
+            ("subdir/../../etc/passwd", "passwd.enc"),
+            ("./../../etc/shadow", "shadow.enc"),
+        ]
+
+        # On Windows, also test Windows-style paths
+        if os.name == 'nt':
+            attack_patterns.append(("C:\\Windows\\System32\\evil", "evil.enc"))
+
+        for attack, expected in attack_patterns:
+            # Save with attack identifier
+            store.save_seed(attack, seed)
+
+            # Verify file is created with sanitized name in test_dir
+            expected_file = os.path.join(self.test_dir, expected)
+            assert os.path.exists(expected_file), f"Expected {expected_file} for attack {attack}"
+
+            # Verify it's in the test directory (not traversed)
+            assert os.path.dirname(expected_file) == self.test_dir
+
+            # Verify we can load it back
+            loaded = store.load_seed(attack)
+            assert loaded == seed
+
+            # Cleanup for next iteration
+            os.remove(expected_file)
+
     def test_multiple_seeds(self):
         """Test storing multiple encrypted seeds"""
         store = FileKeyStore(self.test_dir, password="test_password")
