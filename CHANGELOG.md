@@ -17,6 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improves debuggability while maintaining error message sanitization (Issue #11)
   - **BREAKING CHANGE**: Applications catching generic `Exception` must update to catch specific types
   - Not a concern for v0.2.0 (library not yet public)
+- **Optimized fuzzing suite for Raspberry Pi** (#21)
+  - Reduced examples from 50 to 10 on resource-constrained devices
+  - Disabled shrinking phase to reduce CPU/memory usage
+  - Added `DIDLITE_FULL_FUZZ` environment variable for CI/CD (500 examples with shrinking)
+  - Full suite now completes in ~30 seconds on Raspberry Pi 5 (was timing out)
+  - CI/CD environments can run comprehensive fuzzing with `export DIDLITE_FULL_FUZZ=1`
+
+### Documentation
+- Added `docs/CI_CD_FUZZING.md` with fuzzing configuration guide for CI/CD pipelines
 
 ## [0.1.5] - 2025-12-23
 
