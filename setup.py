@@ -13,7 +13,8 @@ setup(
         "test": [
             "pytest>=7.0.0",
             "pytest-cov>=4.0.0",
-            "authlib>=1.0.0"  # For integration tests
+            "authlib>=1.0.0",  # For integration tests
+            "hypothesis>=6.0.0"  # For property-based testing and fuzzing
         ]
     },
     python_requires=">=3.8",
