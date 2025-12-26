@@ -151,8 +151,10 @@ def verify_jws(token: str) -> dict:
         # SECURITY: Don't include library error details
         # Reference: PHASE_1.1_FINDINGS.md MED-3, PHASE_1.4_FINDINGS.md MED-3, Issue #11
         raise Exception("Verification Failed: Invalid signature")
-    except ValueError:
-        raise Exception("Verification Failed: Malformed token")
+    except ValueError as e:
+        # Preserve our own error messages (segment validation, DID validation, etc.)
+        # Only sanitize library errors
+        raise Exception(f"Verification Failed: Malformed token - {str(e)}")
     except Exception as e:
         # Re-raise our custom exceptions (like expiration) as-is
         if "Token expired" in str(e) or "Verification Failed" in str(e):

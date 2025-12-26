@@ -145,8 +145,11 @@ class EnvKeyStore(KeyStore):
             if len(seed) != 32:
                 raise ValueError(f"Stored seed must be 32 bytes, got {len(seed)}")
             return seed
-        except Exception:
-            # SECURITY: Don't expose env var name or details
+        except ValueError as e:
+            # Re-raise our own controlled error messages
+            if "Stored seed must be 32 bytes" in str(e):
+                raise
+            # SECURITY: Don't expose env var name or details for other errors
             # Reference: PHASE_1.4_FINDINGS.md LOW-3, Issue #16
             raise ValueError("Failed to decode seed from environment: invalid format")
 
@@ -270,9 +273,15 @@ class FileKeyStore(KeyStore):
 
             return seed
 
+        except ValueError as e:
+            # Re-raise our own controlled error messages
+            if "Decrypted seed must be 32 bytes" in str(e):
+                raise
+            # SECURITY: Sanitize other errors to prevent path disclosure
+            # Reference: PHASE_1.4_FINDINGS.md LOW-2, Issue #15
+            raise ValueError(f"Failed to load seed: {type(e).__name__}")
         except Exception as e:
-            # SECURITY: Log full error internally if logging configured
-            # Return sanitized error to caller
+            # SECURITY: Sanitize all other exceptions
             # Reference: PHASE_1.4_FINDINGS.md LOW-2, Issue #15
             raise ValueError(f"Failed to load seed: {type(e).__name__}")
 

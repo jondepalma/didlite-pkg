@@ -235,9 +235,9 @@ class TestFileKeyStore:
         # Try to use path traversal in identifier
         store.save_seed("../../../etc/passwd", seed)
 
-        # Should be saved in the test directory with sanitized name
-        # The exact sanitized name is "______etc_passwd.enc" (6 underscores)
-        expected_file = os.path.join(self.test_dir, "______etc_passwd.enc")
+        # Should be saved in the test directory with basename only
+        # os.path.basename() strips all directory components (Issue #10)
+        expected_file = os.path.join(self.test_dir, "passwd.enc")
         assert os.path.exists(expected_file)
 
         # Verify it's in the test directory (not traversed)
