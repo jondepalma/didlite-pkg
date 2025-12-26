@@ -122,6 +122,10 @@ def verify_jws(token: str) -> dict:
     header = json.loads(header_data)
     signer_did = header.get('kid')
 
+    # SECURITY: Validate 'kid' field exists (prevents algorithm confusion attacks)
+    if not signer_did:
+        raise ValueError("JWS header missing required 'kid' field")
+
     # 2. Resolve the DID to a Public Key
     verify_key = resolve_did_to_key(signer_did)
 

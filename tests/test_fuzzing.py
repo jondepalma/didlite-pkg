@@ -27,12 +27,18 @@ References:
 import pytest
 from hypothesis import given, strategies as st, settings, HealthCheck, assume
 from hypothesis import Phase as HypothesisPhase
+from hypothesis.errors import UnsatisfiedAssumption
 import os
 
 # Reduce fuzzing examples on resource-constrained devices (Raspberry Pi)
 # Set DIDLITE_FULL_FUZZ=1 environment variable for comprehensive fuzzing (CI/CD)
 FULL_FUZZ_MODE = os.environ.get("DIDLITE_FULL_FUZZ", "0") == "1"
-FUZZ_EXAMPLES = 500 if FULL_FUZZ_MODE else 50  # Reduce from 500 to 50 on Pi
+FUZZ_EXAMPLES = 500 if FULL_FUZZ_MODE else 10  # Minimal examples on Pi (10), full suite (500) for CI/CD
+
+# Disable shrinking on Pi to reduce resource usage
+# Shrinking helps minimize failing examples but is CPU-intensive
+# CI/CD environments should use full fuzzing with shrinking enabled
+FUZZ_PHASES = None if FULL_FUZZ_MODE else [HypothesisPhase.explicit, HypothesisPhase.reuse, HypothesisPhase.generate]
 import multibase
 import base64
 import json
@@ -54,7 +60,7 @@ class TestFuzzDIDResolution:
     """
 
     @given(st.text())
-    @settings(max_examples=FUZZ_EXAMPLES, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+    @settings(max_examples=FUZZ_EXAMPLES, deadline=None, suppress_health_check=[HealthCheck.too_slow], phases=FUZZ_PHASES)
     def test_fuzz_resolve_did_with_arbitrary_strings(self, input_string):
         """Fuzz with arbitrary text strings - should never crash"""
         try:
@@ -67,24 +73,27 @@ class TestFuzzDIDResolution:
         except Exception as e:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
-    @given(st.binary())
-    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None)
+    @given(st.binary(min_size=1))  # Exclude empty bytes to avoid UnsatisfiedAssumption
+    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_resolve_did_with_binary_as_string(self, binary_data):
         """Fuzz with binary data converted to strings"""
         try:
             # Try to decode as UTF-8, skip if not valid UTF-8
             input_str = binary_data.decode('utf-8', errors='ignore')
-            assume(len(input_str) > 0)  # Skip empty strings
+            assume(len(input_str) > 0)  # Skip if decoding resulted in empty string
 
             resolve_did_to_key(input_str)
             assert input_str.startswith("did:key:z")
         except ValueError:
             pass
+        except UnsatisfiedAssumption:
+            # Let Hypothesis handle assumption failures (expected behavior)
+            raise
         except Exception as e:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
     @given(st.text(min_size=0, max_size=10))
-    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_resolve_did_with_short_strings(self, short_str):
         """Fuzz with very short strings (edge case: empty, 1-10 chars)"""
         try:
@@ -96,7 +105,7 @@ class TestFuzzDIDResolution:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
     @given(st.text(min_size=1000, max_size=10000))
-    @settings(max_examples=FUZZ_EXAMPLES//10, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//10, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_resolve_did_with_huge_strings(self, huge_str):
         """Fuzz with very large strings (DoS resistance)"""
         try:
@@ -108,7 +117,7 @@ class TestFuzzDIDResolution:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
     @given(st.from_regex(r"did:key:[a-zA-Z0-9!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?]*", fullmatch=True))
-    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_resolve_did_with_malformed_did_structure(self, malformed_did):
         """Fuzz with strings that look like DIDs but have invalid characters"""
         try:
@@ -122,7 +131,7 @@ class TestFuzzDIDResolution:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
     @given(st.from_regex(r"did:key:z[a-km-zA-HJ-NP-Z1-9]{10,100}", fullmatch=True))
-    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_resolve_did_with_valid_format_wrong_length(self, did_str):
         """Fuzz with valid format but wrong key length after decode"""
         try:
@@ -157,7 +166,7 @@ class TestFuzzJWSParsing:
     """
 
     @given(st.text())
-    @settings(max_examples=FUZZ_EXAMPLES, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+    @settings(max_examples=FUZZ_EXAMPLES, deadline=None, suppress_health_check=[HealthCheck.too_slow], phases=FUZZ_PHASES)
     def test_fuzz_verify_jws_with_arbitrary_strings(self, token_str):
         """Fuzz JWS verification with arbitrary strings"""
         try:
@@ -174,7 +183,7 @@ class TestFuzzJWSParsing:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
     @given(st.text(alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_"))
-    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_verify_jws_with_base64url_alphabet(self, token_str):
         """Fuzz with valid base64url characters but arbitrary content"""
         try:
@@ -186,7 +195,7 @@ class TestFuzzJWSParsing:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
     @given(st.text(min_size=0, max_size=5))
-    @settings(max_examples=FUZZ_EXAMPLES//5, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//5, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_verify_jws_with_very_short_tokens(self, short_token):
         """Fuzz with very short tokens (0-5 characters)"""
         try:
@@ -198,7 +207,7 @@ class TestFuzzJWSParsing:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
 
     @given(st.integers(min_value=0, max_value=10))
-    @settings(max_examples=FUZZ_EXAMPLES//10, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//10, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_verify_jws_with_wrong_segment_count(self, num_dots):
         """Fuzz JWS tokens with wrong number of segments (not exactly 3)"""
         token = ".".join(["eyJhbGciOiJFZERTQSJ9"] * (num_dots + 1))
@@ -220,7 +229,7 @@ class TestFuzzJWSParsing:
         st.text(min_size=10, max_size=100),
         st.text(min_size=10, max_size=100)
     )
-    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_verify_jws_with_three_random_segments(self, seg1, seg2, seg3):
         """Fuzz with three random segments joined by dots"""
         token = f"{seg1}.{seg2}.{seg3}"
@@ -245,7 +254,7 @@ class TestFuzzMultibaseMulticodec:
     """
 
     @given(st.text(alphabet="123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"))
-    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_base58_decode(self, base58_str):
         """Fuzz base58 decoding with valid base58 characters"""
         try:
@@ -260,7 +269,7 @@ class TestFuzzMultibaseMulticodec:
             pass
 
     @given(st.binary(min_size=0, max_size=100))
-    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//3, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_multicodec_prefix_validation(self, random_bytes):
         """Fuzz multicodec prefix validation with random byte prefixes"""
         # Create DID with random prefix (not 0xed01)
@@ -292,7 +301,7 @@ class TestFuzzSeedValidation:
     """
 
     @given(st.binary(min_size=0, max_size=1000))
-    @settings(max_examples=FUZZ_EXAMPLES, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_seed_with_arbitrary_bytes(self, seed_bytes):
         """Fuzz seed validation with arbitrary byte strings"""
         try:
@@ -314,7 +323,7 @@ class TestFuzzSeedValidation:
         st.none(),
         st.booleans()
     ))
-    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//2, deadline=None, phases=FUZZ_PHASES)
     def test_fuzz_seed_with_non_bytes_types(self, non_bytes_value):
         """Fuzz seed validation with non-bytes types"""
         # None is special case (generates random seed)
@@ -379,12 +388,20 @@ class TestMalformedInputs:
         with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError)):
             verify_jws(".payload.signature")
 
+    @pytest.mark.skipif(
+        not FULL_FUZZ_MODE,
+        reason="Oversized input tests are resource-intensive; skip on Pi, run in CI/CD with DIDLITE_FULL_FUZZ=1"
+    )
     def test_oversized_did(self):
         """Test DID with excessive length (DoS resistance)"""
         oversized_did = "did:key:z" + "a" * 1000000  # 1MB DID
         with pytest.raises(ValueError):
             resolve_did_to_key(oversized_did)
 
+    @pytest.mark.skipif(
+        not FULL_FUZZ_MODE,
+        reason="Oversized input tests are resource-intensive; skip on Pi, run in CI/CD with DIDLITE_FULL_FUZZ=1"
+    )
     def test_oversized_jws_token(self):
         """Test JWS token with excessive length (DoS resistance)"""
         # Create oversized token (1MB+ payload)
@@ -555,7 +572,7 @@ class TestCryptographicProperties:
             verify_jws(modified_token)
 
     @given(st.binary(min_size=32, max_size=32))
-    @settings(max_examples=FUZZ_EXAMPLES//5, deadline=None)
+    @settings(max_examples=FUZZ_EXAMPLES//5, deadline=None, phases=FUZZ_PHASES)
     def test_random_seeds_produce_valid_dids(self, random_seed):
         """Property: Any 32-byte seed produces valid DID"""
         identity = AgentIdentity(seed=random_seed)
@@ -568,7 +585,7 @@ class TestCryptographicProperties:
         assert verify_key == identity.verify_key
 
     @given(st.dictionaries(st.text(min_size=1), st.one_of(st.text(), st.integers(), st.booleans())))
-    @settings(max_examples=FUZZ_EXAMPLES//5, deadline=None, suppress_health_check=[HealthCheck.too_slow])
+    @settings(max_examples=FUZZ_EXAMPLES//5, deadline=None, suppress_health_check=[HealthCheck.too_slow], phases=FUZZ_PHASES)
     def test_arbitrary_payloads_can_be_signed(self, payload_dict):
         """Property: Any JSON-serializable payload can be signed and verified"""
         identity = AgentIdentity()
@@ -577,8 +594,14 @@ class TestCryptographicProperties:
             token = create_jws(identity, payload_dict)
             recovered_payload = verify_jws(token)
 
-            # Payload must match (order may differ in dicts, but content same)
-            assert recovered_payload == payload_dict
+            # Payload must match (create_jws adds 'iat' claim automatically)
+            # Note: If user's payload has 'iat' or 'exp', they get overwritten by create_jws
+            assert 'iat' in recovered_payload  # 'iat' always added by create_jws
+
+            # Compare payloads excluding auto-added claims ('iat', and potentially 'exp')
+            payload_without_auto_claims = {k: v for k, v in recovered_payload.items() if k not in ('iat', 'exp')}
+            user_payload_without_auto_claims = {k: v for k, v in payload_dict.items() if k not in ('iat', 'exp')}
+            assert payload_without_auto_claims == user_payload_without_auto_claims
         except (TypeError, ValueError, OverflowError):
             # Some payloads may not be JSON-serializable (e.g., huge ints)
             # That's acceptable - library correctly rejects them
