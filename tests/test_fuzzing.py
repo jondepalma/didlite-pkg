@@ -359,30 +359,24 @@ class TestMalformedInputs:
     def test_jws_with_null_bytes(self):
         """Test JWS token with null bytes"""
         malformed_token = "header.payload\x00.signature"
-        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
-        # Exception wrapping will be removed in v0.3.0
-        with pytest.raises((ValueError, json.JSONDecodeError, Exception)):
+        with pytest.raises((ValueError, json.JSONDecodeError)):
             verify_jws(malformed_token)
 
     def test_jws_with_extra_dots(self):
         """Test JWS token with extra separators"""
         malformed_token = "header.payload..signature"
-        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
-        # Exception wrapping will be removed in v0.3.0
-        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
+        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError)):
             verify_jws(malformed_token)
 
     def test_jws_with_empty_segments(self):
         """Test JWS token with empty segments"""
-        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
-        # Exception wrapping will be removed in v0.3.0
-        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
+        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError)):
             verify_jws("..")
 
-        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
+        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError)):
             verify_jws("header..")
 
-        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
+        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError)):
             verify_jws(".payload.signature")
 
     def test_oversized_did(self):
@@ -436,9 +430,7 @@ class TestAttackScenarios:
         forged_token = f"{header}.{forged_payload}.{signature}"
 
         # Verification should fail
-        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
-        # Exception wrapping will be removed in v0.3.0
-        with pytest.raises((BadSignatureError, Exception)):
+        with pytest.raises(BadSignatureError):
             verify_jws(forged_token)
 
     def test_algorithm_confusion_attempt(self):
@@ -456,9 +448,7 @@ class TestAttackScenarios:
         malicious_token = f"{malicious_header}.{payload}."
 
         # Should reject (didlite doesn't support "none" algorithm)
-        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
-        # Exception wrapping will be removed in v0.3.0
-        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
+        with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError)):
             verify_jws(malicious_token)
 
     def test_jws_header_manipulation(self):
@@ -485,9 +475,7 @@ class TestAttackScenarios:
         modified_token = f"{modified_header}.{payload}.{signature}"
 
         # Verification should fail (signature won't match attacker's key)
-        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
-        # Exception wrapping will be removed in v0.3.0
-        with pytest.raises((BadSignatureError, Exception)):
+        with pytest.raises(BadSignatureError):
             verify_jws(modified_token)
 
     def test_replay_attack_detection(self):

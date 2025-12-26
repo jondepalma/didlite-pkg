@@ -102,62 +102,48 @@ def verify_jws(token: str) -> dict:
         The verified payload as a dictionary
 
     Raises:
-        Exception: If signature is invalid or token is expired
+        ValueError: Token format is invalid, expired, or DID is invalid
+        BadSignatureError: Signature verification failed
+        json.JSONDecodeError: Header or payload contains invalid JSON
     """
-    try:
-        # SECURITY: Validate token format before unpacking
-        # Reference: SECURITY_FINDINGS.md HIGH-1, Issue #6
-        segments = token.split('.')
-        if len(segments) != 3:
-            raise ValueError(
-                f"Invalid JWS format: expected 3 segments (header.payload.signature), "
-                f"got {len(segments)}"
-            )
+    # SECURITY: Validate token format before unpacking
+    # Reference: SECURITY_FINDINGS.md HIGH-1, Issue #6
+    segments = token.split('.')
+    if len(segments) != 3:
+        raise ValueError(
+            f"Invalid JWS format: expected 3 segments (header.payload.signature), "
+            f"got {len(segments)}"
+        )
 
-        header_segment, payload_segment, crypto_segment = segments
+    header_segment, payload_segment, crypto_segment = segments
 
-        # 1. Decode Header to find the 'kid' (Key ID / DID)
-        header_data = _b64url_decode(header_segment)
-        header = json.loads(header_data)
-        signer_did = header.get('kid')
+    # 1. Decode Header to find the 'kid' (Key ID / DID)
+    header_data = _b64url_decode(header_segment)
+    header = json.loads(header_data)
+    signer_did = header.get('kid')
 
-        # 2. Resolve the DID to a Public Key
-        verify_key = resolve_did_to_key(signer_did)
+    # 2. Resolve the DID to a Public Key
+    verify_key = resolve_did_to_key(signer_did)
 
-        # 3. Verify Signature
-        signing_input = (header_segment + "." + payload_segment).encode()
-        signature = _b64url_decode(crypto_segment)
+    # 3. Verify Signature
+    signing_input = (header_segment + "." + payload_segment).encode()
+    signature = _b64url_decode(crypto_segment)
 
-        verify_key.verify(signing_input, signature)
+    verify_key.verify(signing_input, signature)
 
-        # 4. Decode Payload
-        payload_data = _b64url_decode(payload_segment)
-        payload = json.loads(payload_data)
+    # 4. Decode Payload
+    payload_data = _b64url_decode(payload_segment)
+    payload = json.loads(payload_data)
 
-        # 5. Check Expiration (if present)
-        if 'exp' in payload:
-            current_time = int(time.time())
-            exp_time = payload['exp']
+    # 5. Check Expiration (if present)
+    if 'exp' in payload:
+        current_time = int(time.time())
+        exp_time = payload['exp']
 
-            if current_time >= exp_time:
-                # Calculate how long ago it expired for better error message
-                expired_seconds = current_time - exp_time
-                raise Exception(f"Token expired {expired_seconds} seconds ago")
+        if current_time >= exp_time:
+            # Calculate how long ago it expired for better error message
+            expired_seconds = current_time - exp_time
+            raise ValueError(f"Token expired {expired_seconds} seconds ago")
 
-        # 6. Return Payload
-        return payload
-
-    except BadSignatureError:
-        # SECURITY: Don't include library error details
-        # Reference: PHASE_1.1_FINDINGS.md MED-3, PHASE_1.4_FINDINGS.md MED-3, Issue #11
-        raise Exception("Verification Failed: Invalid signature")
-    except ValueError as e:
-        # Preserve our own error messages (segment validation, DID validation, etc.)
-        # Only sanitize library errors
-        raise Exception(f"Verification Failed: Malformed token - {str(e)}")
-    except Exception as e:
-        # Re-raise our custom exceptions (like expiration) as-is
-        if "Token expired" in str(e) or "Verification Failed" in str(e):
-            raise
-        # Wrap unexpected exceptions without details
-        raise Exception("Verification Failed: Unexpected error")
+    # 6. Return Payload
+    return payload

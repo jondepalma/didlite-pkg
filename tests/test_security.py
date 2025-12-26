@@ -27,6 +27,7 @@ import pytest
 import multibase
 from didlite.core import AgentIdentity, resolve_did_to_key, ED25519_CODEC
 from didlite.jws import create_jws, verify_jws
+from nacl.exceptions import BadSignatureError
 
 
 class TestSeedValidation:
@@ -197,27 +198,27 @@ class TestJWSSegmentValidation:
 
     def test_empty_token(self):
         """Reject empty token string"""
-        with pytest.raises(Exception, match="Verification Failed: Malformed token.*expected 3 segments.*got 1"):
+        with pytest.raises(ValueError, match="expected 3 segments.*got 1"):
             verify_jws("")
 
     def test_single_segment_token(self):
         """Reject token with only 1 segment"""
-        with pytest.raises(Exception, match="Verification Failed: Malformed token.*expected 3 segments.*got 1"):
+        with pytest.raises(ValueError, match="expected 3 segments.*got 1"):
             verify_jws("onlyone")
 
     def test_two_segment_token(self):
         """Reject token with only 2 segments"""
-        with pytest.raises(Exception, match="Verification Failed: Malformed token.*expected 3 segments.*got 2"):
+        with pytest.raises(ValueError, match="expected 3 segments.*got 2"):
             verify_jws("header.payload")
 
     def test_four_segment_token(self):
         """Reject token with 4 segments"""
-        with pytest.raises(Exception, match="Verification Failed: Malformed token.*expected 3 segments.*got 4"):
+        with pytest.raises(ValueError, match="expected 3 segments.*got 4"):
             verify_jws("a.b.c.d")
 
     def test_many_segment_token(self):
         """Reject token with many segments"""
-        with pytest.raises(Exception, match="Verification Failed: Malformed token.*expected 3 segments.*got 7"):
+        with pytest.raises(ValueError, match="expected 3 segments.*got 7"):
             verify_jws("a.b.c.d.e.f.g")
 
     def test_valid_token_still_works(self):
@@ -326,7 +327,7 @@ class TestCryptographicProperties:
         tampered_token = f"{parts[0]}.{parts[1]}.{modified_sig}"
 
         # Should fail verification with tampered signature
-        with pytest.raises(Exception, match="Verification Failed"):
+        with pytest.raises(BadSignatureError):
             verify_jws(tampered_token)
 
     def test_key_independence(self):
@@ -383,9 +384,9 @@ class TestSecurityRegressions:
 
     def test_high1_segment_validation_regression(self):
         """Ensure HIGH-1 fix (segment validation) doesn't regress"""
-        with pytest.raises(Exception, match="Verification Failed: Malformed token.*expected 3 segments"):
+        with pytest.raises(ValueError, match="expected 3 segments"):
             verify_jws("a.b")
-        with pytest.raises(Exception, match="Verification Failed: Malformed token.*expected 3 segments"):
+        with pytest.raises(ValueError, match="expected 3 segments"):
             verify_jws("a.b.c.d")
 
     def test_high2_padding_correctness_regression(self):
@@ -419,7 +420,7 @@ class TestErrorSanitization:
         fake_signature = base64.urlsafe_b64encode(b'\x00' * 64).rstrip(b'=').decode()
         bad_token = f"{parts[0]}.{parts[1]}.{fake_signature}"
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(BadSignatureError) as exc_info:
             verify_jws(bad_token)
 
         error_msg = str(exc_info.value)
@@ -428,9 +429,6 @@ class TestErrorSanitization:
         assert "/usr/lib" not in error_msg
         assert ".so" not in error_msg
         assert "site-packages" not in error_msg
-        # Should have our controlled message
-        assert "Verification Failed" in error_msg
-        assert "Invalid signature" in error_msg
 
     def test_env_keystore_error_sanitization(self):
         """Ensure env errors don't leak variable names (Issue #16)"""
@@ -507,7 +505,7 @@ class TestErrorSanitization:
         from didlite.keystore import EnvKeyStore
 
         # Test 1: JWS segment validation details are preserved
-        with pytest.raises(Exception, match="expected 3 segments.*got 1"):
+        with pytest.raises(ValueError, match="expected 3 segments.*got 1"):
             verify_jws("invalid")
 
         # Test 2: Seed size validation is preserved in EnvKeyStore
