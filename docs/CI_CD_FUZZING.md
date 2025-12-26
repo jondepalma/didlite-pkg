@@ -8,12 +8,12 @@ The `test_fuzzing.py` suite uses Hypothesis for property-based testing with conf
 
 ### Development Mode (Raspberry Pi / Local)
 **Default Configuration:**
-- Examples: 10 per test (reduced from 500)
+- Examples: 10 per test
 - Shrinking: Disabled
 - Duration: ~30 seconds for full suite
 - Purpose: Quick validation during development
 
-**Environment:**
+**Usage:**
 ```bash
 # Development mode is the default (DIDLITE_FULL_FUZZ not set)
 pytest tests/test_fuzzing.py
@@ -26,7 +26,7 @@ pytest tests/test_fuzzing.py
 - Duration: ~15-30 minutes for full suite
 - Purpose: Comprehensive security testing before release
 
-**Environment:**
+**Usage:**
 ```bash
 # Enable full fuzzing mode
 export DIDLITE_FULL_FUZZ=1
@@ -35,36 +35,30 @@ pytest tests/test_fuzzing.py
 
 ## Implementation Details
 
-### Configuration Variables (tests/test_fuzzing.py)
+### Configuration Variables
+
+The fuzzing suite uses an environment variable to control intensity:
 
 ```python
-# Environment variable controls fuzzing intensity
+# In your test environment
+import os
+
+# Set to "1" for full fuzzing in CI/CD
 FULL_FUZZ_MODE = os.environ.get("DIDLITE_FULL_FUZZ", "0") == "1"
-
-# Example count: 500 for CI/CD, 10 for development
-FUZZ_EXAMPLES = 500 if FULL_FUZZ_MODE else 10
-
-# Phases: Full phases for CI/CD, skip shrinking for development
-FUZZ_PHASES = None if FULL_FUZZ_MODE else [
-    HypothesisPhase.explicit,
-    HypothesisPhase.reuse,
-    HypothesisPhase.generate
-]
 ```
 
-### Test Distribution
+### Resource Requirements
 
-Total tests in fuzzing suite: **17 property-based tests + 8 attack scenario tests**
+**Development Mode (Raspberry Pi 5 8GB):**
+- CPU: ~1 core for 30 seconds
+- Memory: ~100MB
+- Disk: Minimal (< 1MB for .hypothesis cache)
 
-Example distribution (development mode):
-- `FUZZ_EXAMPLES = 10` (full tests)
-- `FUZZ_EXAMPLES//2 = 5` (medium tests)
-- `FUZZ_EXAMPLES//3 = 3` (light tests)
-- `FUZZ_EXAMPLES//5 = 2` (minimal tests)
-- `FUZZ_EXAMPLES//10 = 1` (spot check tests)
-
-Total examples in development mode: ~100 fuzz cases
-Total examples in CI/CD mode: ~5,000 fuzz cases
+**CI/CD Mode (Cloud Runner):**
+- CPU: 2+ cores recommended
+- Memory: 2GB+ recommended
+- Disk: ~10MB for .hypothesis cache
+- Duration: 15-30 minutes
 
 ## CI/CD Pipeline Configuration
 
@@ -128,19 +122,6 @@ fuzzing:
       - .hypothesis/
 ```
 
-## Resource Requirements
-
-### Development Mode (Raspberry Pi 5 8GB)
-- CPU: ~1 core for 30 seconds
-- Memory: ~100MB
-- Disk: Minimal (< 1MB for .hypothesis cache)
-
-### CI/CD Mode (Cloud Runner)
-- CPU: 2+ cores recommended
-- Memory: 2GB+ recommended
-- Disk: ~10MB for .hypothesis cache
-- Duration: 15-30 minutes
-
 ## Validation Checklist
 
 Before releasing a new version, ensure:
@@ -148,8 +129,7 @@ Before releasing a new version, ensure:
 1. ✅ All fuzzing tests pass in **CI/CD mode** (`DIDLITE_FULL_FUZZ=1`)
 2. ✅ No crashes or unexpected exceptions
 3. ✅ All property-based tests validate cryptographic properties
-4. ✅ Attack scenario tests pass (signature forgery, algorithm confusion, etc.)
-5. ✅ Coverage remains at 98%+
+4. ✅ Coverage remains at 98%+
 
 ## Troubleshooting
 
@@ -165,10 +145,7 @@ pytest tests/test_fuzzing.py
 ### CI/CD Tests Too Slow
 **Symptom:** Pipeline exceeds 45 minute timeout
 
-**Solution:** Reduce `FUZZ_EXAMPLES` in CI/CD mode:
-```python
-FUZZ_EXAMPLES = 250 if FULL_FUZZ_MODE else 10  # Reduce from 500 to 250
-```
+**Solution:** Reduce example count in your test configuration or increase timeout.
 
 ### Hypothesis Database Growing Too Large
 **Symptom:** `.hypothesis/` directory exceeds 50MB
@@ -181,6 +158,13 @@ rm -rf .hypothesis/
 ## References
 
 - [Hypothesis Documentation](https://hypothesis.readthedocs.io/)
-- [SECURITY_AUDIT.md](../docs/SECURITY_AUDIT.md) - Phase 3.0: Fuzzing
-- [THREAT_MODEL.md](../docs/THREAT_MODEL.md) - Attack scenarios
-- [Issue #1](https://github.com/jondepalma/didlite-pkg/issues/1) - Security Audit Preparation
+- [docs/TESTING_GUIDE.md](TESTING_GUIDE.md) - Testing best practices
+- [.github/SECURITY.md](../.github/SECURITY.md) - Security policy
+
+## Contributing
+
+If you're setting up fuzzing for your own use case:
+1. Start with development mode (10 examples)
+2. Ensure tests pass locally
+3. Enable full fuzzing in CI/CD only
+4. Monitor resource usage and adjust as needed
