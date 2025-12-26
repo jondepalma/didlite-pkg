@@ -329,6 +329,42 @@ class TestAgentIdentity:
         with pytest.raises(ValueError, match="key must be Ed25519"):
             AgentIdentity.from_pem(rsa_pem)
 
+    def test_from_pem_type_validation(self):
+        """Test that from_pem() validates input type (Issue #13)"""
+        # Test with bytes
+        with pytest.raises(TypeError, match="pem_string must be a str, got bytes"):
+            AgentIdentity.from_pem(b"-----BEGIN PRIVATE KEY-----...")
+
+        # Test with int
+        with pytest.raises(TypeError, match="pem_string must be a str, got int"):
+            AgentIdentity.from_pem(12345)
+
+        # Test with list
+        with pytest.raises(TypeError, match="pem_string must be a str, got list"):
+            AgentIdentity.from_pem(["-----BEGIN", "PRIVATE", "KEY-----"])
+
+        # Test with None
+        with pytest.raises(TypeError, match="pem_string must be a str, got NoneType"):
+            AgentIdentity.from_pem(None)
+
+    def test_from_jwk_type_validation(self):
+        """Test that from_jwk() validates input type (Issue #12)"""
+        # Test with string
+        with pytest.raises(TypeError, match="jwk must be a dict, got str"):
+            AgentIdentity.from_jwk("not-a-dict")
+
+        # Test with int
+        with pytest.raises(TypeError, match="jwk must be a dict, got int"):
+            AgentIdentity.from_jwk(12345)
+
+        # Test with list
+        with pytest.raises(TypeError, match="jwk must be a dict, got list"):
+            AgentIdentity.from_jwk(["kty", "OKP"])
+
+        # Test with None
+        with pytest.raises(TypeError, match="jwk must be a dict, got NoneType"):
+            AgentIdentity.from_jwk(None)
+
 
 class TestResolveDIDToKey:
     """Tests for resolve_did_to_key function"""

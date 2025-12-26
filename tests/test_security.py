@@ -397,3 +397,128 @@ class TestSecurityRegressions:
             token = create_jws(identity, payload)
             verified = verify_jws(token)
             assert verified["data"] == "x" * length
+
+
+class TestErrorSanitization:
+    """
+    Tests for error message sanitization (Issues #11, #14, #15, #16)
+
+    Ensures that error messages don't leak library internals, file paths,
+    or environment variable names.
+    """
+
+    def test_jws_verification_error_messages(self):
+        """Ensure verification errors don't leak library internals (Issue #11)"""
+        import base64
+        identity = AgentIdentity()
+        token = create_jws(identity, {"test": "data"})
+
+        # Tamper with signature to trigger BadSignatureError
+        # Use a valid 64-byte signature (all zeros) that won't match
+        parts = token.split('.')
+        fake_signature = base64.urlsafe_b64encode(b'\x00' * 64).rstrip(b'=').decode()
+        bad_token = f"{parts[0]}.{parts[1]}.{fake_signature}"
+
+        with pytest.raises(Exception) as exc_info:
+            verify_jws(bad_token)
+
+        error_msg = str(exc_info.value)
+        # Should not contain library internals
+        assert "crypto_sign" not in error_msg.lower()
+        assert "/usr/lib" not in error_msg
+        assert ".so" not in error_msg
+        assert "site-packages" not in error_msg
+        # Should have our controlled message
+        assert "Verification Failed" in error_msg
+        assert "Invalid signature" in error_msg
+
+    def test_env_keystore_error_sanitization(self):
+        """Ensure env errors don't leak variable names (Issue #16)"""
+        import os
+        from didlite.keystore import EnvKeyStore
+
+        # Set invalid base64 in env var
+        os.environ["TEST_SEED_AGENT1"] = "invalid-base64!@#"
+        store = EnvKeyStore(prefix="TEST_SEED_")
+
+        try:
+            with pytest.raises(ValueError) as exc_info:
+                store.load_seed("agent1")
+
+            error_msg = str(exc_info.value)
+            # Should not contain env var name
+            assert "TEST_SEED_AGENT1" not in error_msg
+            assert "DIDLITE" not in error_msg
+            # Should have generic message
+            assert "Failed to decode seed from environment" in error_msg
+        finally:
+            # Cleanup
+            del os.environ["TEST_SEED_AGENT1"]
+
+    def test_file_keystore_error_sanitization(self):
+        """Ensure file errors don't leak paths (Issue #15)"""
+        import tempfile
+        import json
+        from didlite.keystore import FileKeyStore
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            store = FileKeyStore(temp_dir, password="test")
+
+            # Create a corrupted file to trigger decryption error
+            corrupted_file = f"{temp_dir}/corrupted.enc"
+            with open(corrupted_file, 'w') as f:
+                json.dump({"salt": "invalid", "encrypted_seed": "invalid"}, f)
+
+            # Try to load corrupted seed - will fail during decryption
+            # The error should not include the file path
+            with pytest.raises(ValueError) as exc_info:
+                store.load_seed("corrupted")
+
+            error_msg = str(exc_info.value)
+            # Should not contain file path
+            assert temp_dir not in error_msg
+            assert corrupted_file not in error_msg
+            # Should have generic message with exception type
+            assert "Failed to load seed" in error_msg
+
+    def test_pem_error_sanitization(self):
+        """Ensure PEM errors don't leak library details (Issue #14)"""
+        malformed_pems = [
+            "-----BEGIN PRIVATE KEY-----\nINVALID\n-----END PRIVATE KEY-----",
+            "not-pem-at-all",
+            "-----BEGIN PRIVATE KEY-----\n\n-----END PRIVATE KEY-----",
+        ]
+
+        for pem in malformed_pems:
+            with pytest.raises(ValueError) as exc_info:
+                AgentIdentity.from_pem(pem)
+
+            error_msg = str(exc_info.value)
+            # Should not contain library internals
+            assert "asn1" not in error_msg.lower()
+            assert ".c:" not in error_msg
+            # Should have controlled message
+            assert "Invalid PEM" in error_msg
+
+    def test_error_message_preservation_regression(self):
+        """Ensure we preserve our own error messages while sanitizing library errors"""
+        import os
+        import base64
+        from didlite.keystore import EnvKeyStore
+
+        # Test 1: JWS segment validation details are preserved
+        with pytest.raises(Exception, match="expected 3 segments.*got 1"):
+            verify_jws("invalid")
+
+        # Test 2: Seed size validation is preserved in EnvKeyStore
+        store = EnvKeyStore()
+        os.environ["DIDLITE_SEED_SIZE"] = base64.b64encode(b"a" * 16).decode()
+        try:
+            with pytest.raises(ValueError, match="Stored seed must be 32 bytes"):
+                store.load_seed("size")
+        finally:
+            del os.environ["DIDLITE_SEED_SIZE"]
+
+        # Test 3: DID validation details are preserved
+        with pytest.raises(ValueError, match="Invalid DID format.*Must start with did:key:"):
+            resolve_did_to_key("not-a-did")

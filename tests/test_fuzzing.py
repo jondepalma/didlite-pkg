@@ -130,14 +130,16 @@ class TestFuzzDIDResolution:
             # If successful, check it's actually valid
         except ValueError as e:
             # Expected errors:
-            # - "DID must be 46 characters" (length check)
-            # - "Decoded DID must be 34 bytes" (after multibase decode)
-            # - "Invalid Ed25519 multicodec prefix" (if wrong prefix)
-            assert any(msg in str(e) for msg in [
-                "DID must be 46 characters",
-                "Decoded DID must be 34 bytes",
-                "Invalid Ed25519 multicodec prefix",
-                "Invalid base58"
+            # - "decoded key must be at least 34 bytes" (after multibase decode)
+            # - "expected Ed25519 multicodec prefix" (if wrong prefix)
+            # - "Ed25519 public key must be 32 bytes" (wrong key size)
+            # - Various multibase/base58 errors
+            assert any(msg in str(e).lower() for msg in [
+                "decoded key must be at least 34 bytes",
+                "multicodec prefix",
+                "public key must be 32 bytes",
+                "base58",
+                "multibase"
             ])
         except Exception as e:
             pytest.fail(f"Unexpected exception type: {type(e).__name__}: {e}")
@@ -206,7 +208,7 @@ class TestFuzzJWSParsing:
                 pytest.fail(f"Should reject token with {num_dots + 1} segments")
         except ValueError as e:
             if num_dots != 2:
-                assert "must have exactly 3 segments" in str(e)
+                assert "3 segments" in str(e)
         except (BadSignatureError, json.JSONDecodeError):
             # Also acceptable (fails later in parsing)
             pass
@@ -357,20 +359,23 @@ class TestMalformedInputs:
     def test_jws_with_null_bytes(self):
         """Test JWS token with null bytes"""
         malformed_token = "header.payload\x00.signature"
-        # TODO (Issue #21): Revert to (ValueError, json.JSONDecodeError) once exception masking is fixed in v0.3.0
+        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
+        # Exception wrapping will be removed in v0.3.0
         with pytest.raises((ValueError, json.JSONDecodeError, Exception)):
             verify_jws(malformed_token)
 
     def test_jws_with_extra_dots(self):
         """Test JWS token with extra separators"""
         malformed_token = "header.payload..signature"
-        # TODO (Issue #21): Revert to (ValueError, BadSignatureError, json.JSONDecodeError) once exception masking is fixed in v0.3.0
+        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
+        # Exception wrapping will be removed in v0.3.0
         with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
             verify_jws(malformed_token)
 
     def test_jws_with_empty_segments(self):
         """Test JWS token with empty segments"""
-        # TODO (Issue #21): Revert to (ValueError, BadSignatureError, json.JSONDecodeError) once exception masking is fixed in v0.3.0
+        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
+        # Exception wrapping will be removed in v0.3.0
         with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
             verify_jws("..")
 
@@ -431,7 +436,8 @@ class TestAttackScenarios:
         forged_token = f"{header}.{forged_payload}.{signature}"
 
         # Verification should fail
-        # TODO (Issue #21): Revert to BadSignatureError once exception masking is fixed in v0.3.0
+        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
+        # Exception wrapping will be removed in v0.3.0
         with pytest.raises((BadSignatureError, Exception)):
             verify_jws(forged_token)
 
@@ -450,7 +456,8 @@ class TestAttackScenarios:
         malicious_token = f"{malicious_header}.{payload}."
 
         # Should reject (didlite doesn't support "none" algorithm)
-        # TODO (Issue #21): Revert to (ValueError, BadSignatureError, json.JSONDecodeError) once exception masking is fixed
+        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
+        # Exception wrapping will be removed in v0.3.0
         with pytest.raises((ValueError, BadSignatureError, json.JSONDecodeError, Exception)):
             verify_jws(malicious_token)
 
@@ -478,7 +485,8 @@ class TestAttackScenarios:
         modified_token = f"{modified_header}.{payload}.{signature}"
 
         # Verification should fail (signature won't match attacker's key)
-        # TODO (Issue #21): Revert to BadSignatureError once exception masking is fixed in v0.3.0
+        # NOTE (Issue #21): Accepts both native exceptions and wrapped Exception
+        # Exception wrapping will be removed in v0.3.0
         with pytest.raises((BadSignatureError, Exception)):
             verify_jws(modified_token)
 
