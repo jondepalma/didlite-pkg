@@ -6,6 +6,7 @@ import base64
 import time
 from didlite.core import AgentIdentity
 from didlite.jws import create_jws, verify_jws
+from nacl.exceptions import BadSignatureError
 
 
 class TestCreateJWS:
@@ -160,7 +161,7 @@ class TestVerifyJWS:
 
         tampered_token = f"{header}.{tampered_b64}.{signature}"
 
-        with pytest.raises(Exception, match="Verification Failed"):
+        with pytest.raises(BadSignatureError):
             verify_jws(tampered_token)
 
     def test_verify_tampered_signature_fails(self):
@@ -175,7 +176,7 @@ class TestVerifyJWS:
         corrupted_sig = signature[:-5] + "XXXXX"
         tampered_token = f"{header}.{payload_b64}.{corrupted_sig}"
 
-        with pytest.raises(Exception, match="Verification Failed"):
+        with pytest.raises(BadSignatureError):
             verify_jws(tampered_token)
 
     def test_verify_wrong_signer(self):
@@ -203,22 +204,22 @@ class TestVerifyJWS:
 
         fake_token = f"{fake_header_b64}.{payload_b64}.{sig}"
 
-        with pytest.raises(Exception, match="Verification Failed"):
+        with pytest.raises(BadSignatureError):
             verify_jws(fake_token)
 
     def test_verify_malformed_token(self):
         """Test that malformed tokens fail gracefully"""
-        with pytest.raises(Exception, match="Verification Failed"):
+        with pytest.raises(ValueError, match="expected 3 segments"):
             verify_jws("not.a.valid.token.structure")
 
     def test_verify_missing_parts(self):
         """Test that tokens with missing parts fail"""
-        with pytest.raises(Exception, match="Verification Failed"):
+        with pytest.raises(ValueError, match="expected 3 segments"):
             verify_jws("only.two")
 
     def test_verify_empty_token(self):
         """Test that empty token fails"""
-        with pytest.raises(Exception, match="Verification Failed"):
+        with pytest.raises(ValueError, match="expected 3 segments"):
             verify_jws("")
 
     def test_roundtrip_multiple_agents(self):
@@ -435,7 +436,7 @@ class TestJWSTTLExpiration:
         time.sleep(2)
 
         # Should now fail
-        with pytest.raises(Exception, match="Token expired"):
+        with pytest.raises(ValueError, match="Token expired"):
             verify_jws(token)
 
     def test_expired_token_error_message(self):
@@ -447,7 +448,7 @@ class TestJWSTTLExpiration:
         past_exp = int(time.time()) - 100
         token = create_jws(agent, payload, exp=past_exp)
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             verify_jws(token)
 
         error_msg = str(exc_info.value)
@@ -485,7 +486,7 @@ class TestJWSTTLExpiration:
         time.sleep(3)
 
         # Should fail after expiration
-        with pytest.raises(Exception, match="Token expired"):
+        with pytest.raises(ValueError, match="Token expired"):
             verify_jws(token)
 
     def test_zero_expiration_time(self):
@@ -516,7 +517,7 @@ class TestJWSTTLExpiration:
         token = create_jws(agent, payload, expires_in=-100)
 
         # Should fail immediately
-        with pytest.raises(Exception, match="Token expired"):
+        with pytest.raises(ValueError, match="Token expired"):
             verify_jws(token)
 
     def test_very_long_expiration(self):

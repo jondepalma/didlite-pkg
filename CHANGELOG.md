@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - Unreleased
+
+### Changed
+- **JWS verification now raises native exception types** (#21)
+  - `verify_jws()` no longer wraps exceptions in generic `Exception`
+  - Returns specific exception types for better error handling:
+    - `BadSignatureError`: Signature verification failed
+    - `ValueError`: Token format invalid, expired, or DID invalid
+    - `json.JSONDecodeError`: Header or payload contains invalid JSON
+  - Improves debuggability while maintaining error message sanitization (Issue #11)
+  - **BREAKING CHANGE**: Applications catching generic `Exception` must update to catch specific types
+  - Not a concern for v0.2.0 (library not yet public)
+
 ## [0.1.5] - 2025-12-23
 
 ### Added
