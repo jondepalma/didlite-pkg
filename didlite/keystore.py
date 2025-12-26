@@ -145,8 +145,10 @@ class EnvKeyStore(KeyStore):
             if len(seed) != 32:
                 raise ValueError(f"Stored seed must be 32 bytes, got {len(seed)}")
             return seed
-        except Exception as e:
-            raise ValueError(f"Failed to decode seed from environment variable {env_var}: {e}")
+        except Exception:
+            # SECURITY: Don't expose env var name or details
+            # Reference: PHASE_1.4_FINDINGS.md LOW-3, Issue #16
+            raise ValueError("Failed to decode seed from environment: invalid format")
 
     def delete_seed(self, identifier: str) -> bool:
         env_var = f"{self.prefix}{identifier.upper()}"
@@ -196,8 +198,11 @@ class FileKeyStore(KeyStore):
 
     def _get_file_path(self, identifier: str) -> str:
         """Get the file path for a given identifier"""
-        # Sanitize identifier to prevent path traversal
-        safe_id = identifier.replace('/', '_').replace('\\', '_').replace('..', '_')
+        # SECURITY: Use basename to prevent any path traversal
+        # Reference: PHASE_1.1_FINDINGS.md MED-2, Issue #10
+        safe_id = os.path.basename(identifier)
+        # Additionally sanitize special characters
+        safe_id = safe_id.replace('/', '_').replace('\\', '_')
         return os.path.join(self.storage_dir, f"{safe_id}.enc")
 
     def _derive_key(self, salt: bytes) -> bytes:
@@ -266,7 +271,10 @@ class FileKeyStore(KeyStore):
             return seed
 
         except Exception as e:
-            raise ValueError(f"Failed to load seed from {file_path}: {e}")
+            # SECURITY: Log full error internally if logging configured
+            # Return sanitized error to caller
+            # Reference: PHASE_1.4_FINDINGS.md LOW-2, Issue #15
+            raise ValueError(f"Failed to load seed: {type(e).__name__}")
 
     def delete_seed(self, identifier: str) -> bool:
         file_path = self._get_file_path(identifier)

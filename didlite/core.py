@@ -155,8 +155,14 @@ class AgentIdentity:
             A new AgentIdentity instance
 
         Raises:
+            TypeError: If jwk is not a dict
             ValueError: If the JWK is invalid or missing required fields
         """
+        # SECURITY: Validate input type
+        # Reference: PHASE_1.2_FINDINGS.md MED-4, Issue #12
+        if not isinstance(jwk, dict):
+            raise TypeError(f"jwk must be a dict, got {type(jwk).__name__}")
+
         # Validate JWK format
         if jwk.get("kty") != "OKP":
             raise ValueError("Invalid JWK: kty must be 'OKP' for Ed25519 keys")
@@ -194,6 +200,11 @@ class AgentIdentity:
             # Get private key bytes (seed)
             private_key_bytes = bytes(self.signing_key)[:32]
 
+            # SECURITY: Defensive validation
+            # Reference: PHASE_1.1_FINDINGS.md MED-1, Issue #9
+            if len(private_key_bytes) != 32:
+                raise ValueError(f"Internal error: expected 32-byte private key, got {len(private_key_bytes)}")
+
             # Create cryptography Ed25519 private key
             crypto_private_key = ed25519.Ed25519PrivateKey.from_private_bytes(private_key_bytes)
 
@@ -207,6 +218,11 @@ class AgentIdentity:
         else:
             # Get public key bytes
             public_key_bytes = self.verify_key.encode(encoder=RawEncoder)
+
+            # SECURITY: Defensive validation
+            # Reference: PHASE_1.1_FINDINGS.md MED-1, Issue #9
+            if len(public_key_bytes) != 32:
+                raise ValueError(f"Internal error: expected 32-byte public key, got {len(public_key_bytes)}")
 
             # Create cryptography Ed25519 public key
             crypto_public_key = ed25519.Ed25519PublicKey.from_public_bytes(public_key_bytes)
@@ -230,8 +246,14 @@ class AgentIdentity:
             A new AgentIdentity instance
 
         Raises:
+            TypeError: If pem_string is not a str
             ValueError: If the PEM is invalid or contains a public key only
         """
+        # SECURITY: Validate input type
+        # Reference: PHASE_1.2_FINDINGS.md MED-5, Issue #13
+        if not isinstance(pem_string, str):
+            raise TypeError(f"pem_string must be a str, got {type(pem_string).__name__}")
+
         pem_bytes = pem_string.encode('utf-8')
 
         try:
@@ -258,9 +280,14 @@ class AgentIdentity:
 
         except ValueError as e:
             error_msg = str(e).lower()
+            # Re-raise our own controlled error messages
+            if "key must be ed25519" in error_msg:
+                raise
             if any(keyword in error_msg for keyword in ["public key", "could not deserialize", "no begin/end delimiters for a private key"]):
                 raise ValueError("Invalid PEM: cannot create AgentIdentity from public key only (private key required)")
-            raise
+            # SECURITY: Generic error instead of re-raising original
+            # Reference: PHASE_1.4_FINDINGS.md LOW-1, Issue #14
+            raise ValueError("Invalid PEM: failed to parse private key")
 
 def resolve_did_to_key(did: str) -> VerifyKey:
     """
