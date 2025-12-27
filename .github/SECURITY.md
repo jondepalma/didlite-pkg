@@ -46,7 +46,7 @@ We release security updates for the following versions:
 
 For sensitive reports, you may encrypt your email using PGP:
 
-**PGP Key:** [To be added - placeholder for future key]
+**PGP Key:** [PGP Public Key](.github/security/didlite-security-pubkey.asc)
 
 ---
 
