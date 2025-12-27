@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.1] - 2025-12-26
+
+### Fixed
+- **Added missing `cryptography` dependency to setup.py** (#30)
+  - Package was importing from `cryptography` but not declaring it as a dependency
+  - Caused `ModuleNotFoundError` when installed in fresh environments
+  - Added `cryptography>=41.0.0` to `install_requires`
+  - Required for PEM export/import (`to_pem()`, `from_pem()`) and keystore encryption
+  - **CRITICAL**: This is a patch release to fix broken installations
+
 ## [0.2.0] - 2025-12-26
 
 ### Changed
