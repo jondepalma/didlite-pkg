@@ -38,7 +38,7 @@ Install in editable mode for live development (changes reflected immediately wit
 pip install -e .
 ```
 
-For cross-project development (e.g., with orchestrator or agent-sdk):
+For cross-project development:
 ```bash
 # From consuming project directory
 pip install -e ../didlite-pkg

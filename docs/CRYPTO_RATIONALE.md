@@ -461,13 +461,13 @@ Seeds stored by `FileKeyStore` are encrypted using:
 - **Strong passwords mitigate GPU attacks:** 20-character random password = 2^95 bits entropy (~10^28 attempts to brute-force)
 - **NIST compliance:** SP 800-132 approves PBKDF2 with 10,000+ iterations (we use 60x more)
 
-**Future consideration:** Add Argon2id support in v0.3.0 for memory-hard KDF (optional, user-selectable)
+**Future consideration:** Add Argon2id support in a future version for memory-hard KDF (optional, user-selectable)
 
 **Iteration Count Evolution:**
 ```
 v0.1.0-v0.1.4: 480,000 iterations (OWASP 2021 recommendation)
 v0.1.5-v0.2.0: 600,000 iterations (OWASP 2023 recommendation)
-v0.3.0:        Planned: Argon2id support (memory-hard)
+Future:        Planned: Argon2id support (memory-hard)
 ```
 
 **2. Why HMAC-SHA256 (Not HMAC-SHA512)?**
@@ -556,8 +556,8 @@ didlite **does NOT support** key rotation or revocation.
 
 | DID Method | Revocation Support | Complexity | didlite Support |
 |------------|-------------------|------------|-----------------|
-| `did:key` | ❌ No | 🟢 Low | ✅ v0.1.0+ |
-| `did:web` | ✅ Yes (update HTTPS endpoint) | 🟡 Medium | ⏳ Planned v0.3.0 |
+| `did:key` | ❌ No | 🟢 Low | ✅ Current |
+| `did:web` | ✅ Yes (update HTTPS endpoint) | 🟡 Medium | ⏳ Under consideration |
 | `did:ion` | ✅ Yes (Bitcoin + IPFS) | 🔴 High | ❌ Not planned |
 
 **3. Why NOT Implement Key Rotation in `did:key`?**
@@ -581,18 +581,16 @@ new_agent = AgentIdentity()  # Generate new DID
 ```
 
 **For Long-Lived Identities:**
-- Use `did:web` (planned for v0.3.0) - allows key rotation via HTTPS DID document updates
+- Use `did:web` (under consideration) - allows key rotation via HTTPS DID document updates
 - Use application-layer revocation lists (CRL, OCSP-style)
 - Implement multi-signature schemes (3-of-5 keys, rotate by updating signature threshold)
 
 **5. Future Plans:**
 
-**v0.3.0 (Planned):**
-- Add `did:web` support for mutable DIDs
+**Future versions may include:**
+- `did:web` support for mutable DIDs
 - User can update DID document at `https://example.com/.well-known/did.json`
 - Allows key rotation without changing DID
-
-**v0.4.0 (Planned):**
 - Multi-key DID support (W3C DID Core allows multiple `verificationMethod` entries)
 - Application-layer revocation checking (callback API for revocation list validation)
 
@@ -658,7 +656,7 @@ didlite **does NOT implement** any cryptographic primitives. All cryptographic o
 - **FIPS 204:** ML-DSA (Dilithium) - Digital signatures
 - **FIPS 205:** SLH-DSA (SPHINCS+) - Stateless hash-based signatures
 
-**didlite v2.0 (Post-2030 Plan):**
+**Future post-quantum support (Post-2030):**
 - Add ML-DSA (Dilithium) support for post-quantum signatures
 - Support hybrid `did:key` (Ed25519 + Dilithium) for transition period
 - Maintain backward compatibility with Ed25519-only DIDs
@@ -668,7 +666,7 @@ didlite **does NOT implement** any cryptographic primitives. All cryptographic o
 - PQC signatures are large (2-3KB vs. 64 bytes for Ed25519)
 - Standards finalized in 2024 - libraries still maturing
 
-**Action:** Monitor NIST PQC standardization, plan migration path for didlite v2.0.
+**Action:** Monitor NIST PQC standardization, plan migration path for future major version.
 
 ---
 
@@ -676,17 +674,17 @@ didlite **does NOT implement** any cryptographic primitives. All cryptographic o
 
 **Use Case:** Production deployments requiring defense against host compromise
 
-**Planned for v0.4.0:**
+**Under consideration for future versions:**
 - PKCS#11 interface support (industry standard for HSMs)
 - Support for cloud KMS (AWS KMS, Google Cloud KMS, Azure Key Vault)
 - TPM 2.0 integration for embedded devices
 
-**Why not v0.1.x?**
+**Why not currently?**
 - Adds complexity (each HSM has different API)
 - Requires hardware/cloud infrastructure (not universally available)
-- Priority: Get core library stable first
+- Priority: Core library stability first
 
-**Future API:**
+**Potential future API:**
 ```python
 from didlite.keystore import HSMKeyStore
 store = HSMKeyStore(pkcs11_lib="/usr/lib/softhsm2.so", slot=0, pin="1234")
@@ -701,17 +699,17 @@ agent = store.get_or_create_identity("production-agent")
 
 **Current:** JWS payloads are base64-encoded (not encrypted) - visible to anyone
 
-**Planned for v0.5.0:**
+**Under consideration for future versions:**
 - Add `create_jwe()` function using NaCl's `Box` (X25519-XSalsa20-Poly1305)
 - Hybrid encryption: Encrypt payload with ephemeral symmetric key, encrypt key with recipient's DID public key
 - Standard: RFC 7516 (JSON Web Encryption)
 
-**Why not now?**
+**Why not currently?**
 - JWS (signatures) are higher priority than JWE (encryption) for DID use case
 - Adds complexity (key agreement, recipient key management)
-- Users can use HTTPS/TLS for transport encryption (good enough for v0.1.x)
+- Users can use HTTPS/TLS for transport encryption (sufficient for now)
 
-**Future API:**
+**Potential future API:**
 ```python
 # Encrypt for recipient DID
 jwe_token = create_jwe(payload, recipient_did="did:key:z6Mkh...")
@@ -725,25 +723,25 @@ payload = decrypt_jwe(jwe_token, agent.signing_key)
 
 **Current:** PBKDF2-HMAC-SHA256 (600,000 iterations)
 
-**Future (v0.3.0):** Add Argon2id support as alternative KDF
+**Future:** Add Argon2id support as alternative KDF (under consideration)
 
 **Benefits:**
 - **Memory-hard:** Resistant to GPU/ASIC attacks (requires 64MB+ RAM per attempt)
 - **Configurable:** Can tune memory, iterations, parallelism
 - **Won Password Hashing Competition (2015)**
 
-**Why not now?**
+**Why not currently?**
 - PBKDF2 is sufficient for strong passwords (20+ chars)
 - Argon2 adds dependency (`argon2-cffi`)
 - Violates "lite" philosophy slightly (additional binary dependency)
 
-**Planned Implementation:**
+**Potential future implementation:**
 ```python
-# v0.3.0 API
+# Future API (under consideration)
 store = FileKeyStore(
     storage_dir="/secure/path",
     password="strong_password",
-    kdf="argon2id",  # New parameter
+    kdf="argon2id",  # Potential new parameter
     argon2_memory=65536,  # 64MB
     argon2_iterations=3,
     argon2_parallelism=4
@@ -754,7 +752,7 @@ store = FileKeyStore(
 
 ### 5. `did:web` Support (Mutable DIDs)
 
-**Planned for v0.3.0**
+**Under consideration for future versions**
 
 **Motivation:** Allow key rotation without changing DID
 
@@ -821,7 +819,7 @@ DID Document URL: https://example.com/.well-known/did.json
 
 **Document Status:** ✅ COMPLETE
 **Last Updated:** 2025-12-25
-**Next Review:** Before v1.0.0 release or when adding new cryptographic features
+**Next Review:** Before major releases or when adding new cryptographic features
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 

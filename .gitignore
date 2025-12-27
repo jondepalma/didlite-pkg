@@ -44,3 +44,32 @@ htmlcov/
 # OS
 .DS_Store
 Thumbs.db
+
+# ============================================================================
+# Internal Development Documentation
+# ============================================================================
+# The docs/dev-design/ directory contains internal working documents,
+# proprietary ideas, and detailed design notes that should not be public.
+# Use this directory for context when working with AI assistants or for
+# internal planning that you don't want committed to the repository.
+docs/dev-design/
+
+# ============================================================================
+# Security Audit Internal Documentation (Moved to didlite-internal repo)
+# ============================================================================
+docs/SECURITY_AUDIT.md
+docs/PHASE_*.md
+
+# ============================================================================
+# Proprietary Strategic Documents (Moved to didlite-internal repo)
+# ============================================================================
+docs/FUTURE_UPGRADE_DETAILS.md
+
+# ============================================================================
+# Historical Migration Documentation (Archived)
+# ============================================================================
+docs/GITHUB_MIGRATION_*.md
+docs/GH_CLI_SETUP.md
+docs/GITEA_LABELS.md
+docs/GITHUB_CI_CD.md
+docs/manual_tests/
