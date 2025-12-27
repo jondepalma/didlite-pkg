@@ -172,17 +172,12 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 - **Symbolic Link Attacks:** Attacker replaces seed file with symlink to sensitive file
 
 **Mitigations:**
-- ⚠️ Weak path traversal protection (Issue #10 - MED-2, deferred)
+- ✅ Path traversal protection implemented (Issue #10 - resolved in v0.2.0)
 - ✅ Uses Python's `open()` - follows symlinks but doesn't create them
 - ✅ PBKDF2 + Fernet encryption protects file contents
-- ❌ No explicit permission setting (relies on OS umask)
+- ✅ Restrictive file permissions enforced
 
-**Future Improvements:**
-- Use `os.path.basename()` to strip directory traversal
-- Set restrictive file permissions (0600) explicitly
-- Consider `O_NOFOLLOW` flag where available
-
-**Reference:** [PHASE_1.1_FINDINGS.md](PHASE_1.1_FINDINGS.md) - MED-2
+**Reference:** Issue #10 (resolved)
 
 ---
 
@@ -225,7 +220,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 **Mitigations:**
 - ✅ Seeds stored as base64 strings (not raw bytes in env)
 - ⚠️ No protection against process dumps (OS-level security required)
-- ❌ EnvKeyStore error messages leak env var names (Issue #16 - LOW-3, deferred)
+- ✅ EnvKeyStore error messages sanitized (Issue #16 - resolved in v0.2.0)
 
 **Best Practices for Users:**
 - Use secret management systems (HashiCorp Vault, AWS Secrets Manager)
@@ -233,7 +228,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 - Clear sensitive env vars after process startup
 - Use encrypted environment files (`.env.encrypted`)
 
-**Reference:** [PHASE_1.4_FINDINGS.md](PHASE_1.4_FINDINGS.md) - LOW-3
+**Reference:** Issue #16 (resolved)
 
 ---
 
@@ -324,7 +319,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 - Set restrictive directory permissions manually (`chmod 700`)
 - Use HSMs for production keys (future feature)
 
-**Reference:** [PHASE_1.1_FINDINGS.md](PHASE_1.1_FINDINGS.md) - MED-2
+**Reference:** Issue #10 (resolved)
 
 ---
 
@@ -453,8 +448,8 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 - ✅ Algorithm enforcement (EdDSA only, no negotiation)
 - ✅ Signature verification via PyNaCl (constant-time)
 
-**Remaining Issues:**
-- ⚠️ Exception messages may leak internal state (Issue #11 - MED-3, deferred)
+**Mitigations Complete:**
+- ✅ Exception messages sanitized (Issue #11 - resolved in v0.2.0)
 
 **Test Coverage:**
 - ✅ Segment validation tests
@@ -518,19 +513,17 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 - DoS (file corruption, disk exhaustion)
 
 **Mitigations:**
-- ⚠️ Weak path traversal protection (Issue #10 - MED-2, deferred)
-  - Current: Basic validation, not comprehensive
-  - Recommended: Use `os.path.basename()` to strip paths
+- ✅ Path traversal protection implemented (Issue #10 - resolved in v0.2.0)
 - ✅ PBKDF2 (600,000 iterations) for key derivation
 - ✅ Fernet authenticated encryption (HMAC integrity)
-- ❌ No explicit file permission setting
+- ✅ Explicit file permission setting enforced
 
 **Best Practices for Users:**
 - Use strong passwords (20+ characters)
 - Restrict keystore directory permissions (`chmod 700`)
 - Store keystores on encrypted volumes
 
-**Reference:** [PHASE_1.1_FINDINGS.md](PHASE_1.1_FINDINGS.md) - MED-2
+**Reference:** Issue #10 (resolved)
 
 ---
 
@@ -557,14 +550,14 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 **Mitigations:**
 - ✅ JWK format validation (checks `kty`, `crv` fields)
 - ✅ PEM algorithm validation (checks for Ed25519)
-- ⚠️ Weak type validation (Issue #12, #13 - MED-4, MED-5, deferred)
-- ⚠️ PEM error message leakage (Issue #14 - LOW-1, deferred)
+- ✅ Type validation implemented (Issues #12, #13 - resolved in v0.2.0)
+- ✅ PEM error messages sanitized (Issue #14 - resolved in v0.2.0)
 
 **Test Coverage:**
 - ✅ Format validation tests
-- ⏳ Type validation tests (recommended in Phase 1.2)
+- ✅ Type validation tests (added in v0.2.0)
 
-**Reference:** [PHASE_1.2_FINDINGS.md](PHASE_1.2_FINDINGS.md) - MED-4, MED-5
+**Reference:** Issues #12-14 (resolved)
 
 ---
 
@@ -646,20 +639,18 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 5. If seed file is valid cron syntax (unlikely but possible), achieves code execution
 
 **Impact:**
-- Arbitrary file write (limited by encryption format)
-- DoS (overwriting system files)
-- Potential privilege escalation
+- Previously: Arbitrary file write vulnerability
+- Now: PREVENTED by path traversal protection
 
-**Likelihood:** LOW (requires multi-tenant architecture + weak validation + file content constraints)
+**Likelihood:** N/A (ELIMINATED in v0.2.0)
 
 **Mitigations:**
-- ⚠️ Current protection is weak (Issue #10 - MED-2, deferred)
-- 🔧 Recommended fix: Use `os.path.basename(identifier)` to strip paths
-- 🔧 Recommended: Validate identifier against whitelist regex (`^[a-zA-Z0-9_-]+$`)
+- ✅ Path traversal protection implemented (Issue #10 - resolved in v0.2.0)
+- ✅ Identifier validation enforced
 
 **Risk Rating:** MEDIUM (Impact: HIGH, Likelihood: LOW)
 
-**Reference:** [PHASE_1.1_FINDINGS.md](PHASE_1.1_FINDINGS.md) - MED-2
+**Reference:** Issue #10 (resolved)
 
 ---
 
@@ -964,13 +955,13 @@ The following threats are explicitly **out of scope** for didlite's threat model
 | Timing attacks on signatures | Constant-time PyNaCl operations | ✅ DONE | Phase 1.3 |
 | File storage brute-force | PBKDF2 (600k iterations) + Fernet | ✅ DONE | Existing |
 
-### Planned Mitigations (Deferred to v1.0.0)
+### Completed Mitigations (v0.2.0)
 
-| Threat | Mitigation | Priority | Reference |
-|--------|-----------|----------|-----------|
-| Path traversal in FileKeyStore | Use `os.path.basename()` | MEDIUM | Issue #10, MED-2 |
-| Error message information leakage | Sanitize exception messages | MEDIUM | Issue #11-18 |
-| Type confusion in JWK/PEM | Add runtime type checks | MEDIUM | Issue #12-13, MED-4/5 |
+| Threat | Mitigation | Status | Reference |
+|--------|-----------|--------|-----------|
+| Path traversal in FileKeyStore | Implemented `os.path.basename()` | ✅ DONE | Issue #10 |
+| Error message information leakage | Sanitized exception messages | ✅ DONE | Issues #11-16 |
+| Type confusion in JWK/PEM | Added runtime type checks | ✅ DONE | Issues #12-13 |
 
 ### Application-Layer Mitigations (User Responsibility)
 
@@ -1003,12 +994,12 @@ The following threats are explicitly **out of scope** for didlite's threat model
 | Weak password brute-force | HIGH | MEDIUM | PBKDF2 + strong password policy | ⚠️ USER RESPONSIBILITY |
 | Network eavesdropping | HIGH | MEDIUM | Use HTTPS/TLS | ⚠️ USER RESPONSIBILITY |
 
-### Medium Risks (Deferred to v1.0.0)
+### Medium Risks (RESOLVED in v0.2.0)
 
 | Risk | Severity | Likelihood | Mitigation | Status |
 |------|----------|-----------|-----------|--------|
-| Path traversal | MEDIUM | LOW | Use `basename()` | ⏭️ DEFERRED (Issue #10) |
-| Information disclosure | MEDIUM | LOW | Sanitize errors | ⏭️ DEFERRED (Issue #11-18) |
+| Path traversal | MEDIUM | LOW | Use `basename()` | ✅ RESOLVED (Issue #10) |
+| Information disclosure | MEDIUM | LOW | Sanitize errors | ✅ RESOLVED (Issues #11-16) |
 
 ### Low Risks (Accepted)
 
