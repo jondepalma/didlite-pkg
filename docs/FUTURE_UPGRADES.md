@@ -72,6 +72,8 @@ didlite follows the **"SQLite for decentralized identity"** approach:
 - Multi-key support
 - Integration with OS keychains/HSM
 
+**Note:** These features are under consideration and may change based on community feedback.
+
 ---
 
 ### v1.0.0 - Stable API (Target: Late 2026)
