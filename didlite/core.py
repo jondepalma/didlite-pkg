@@ -17,9 +17,10 @@ from nacl.encoding import RawEncoder
 import multibase
 import base64
 from typing import Optional, TYPE_CHECKING
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import ed25519
-from cryptography.hazmat.backends import default_backend
+
+# SECURITY: Lazy import for cryptography dependency (lite philosophy)
+# Reference: PHASE_5 VULN-3, Issue #35
+# Only imported when PEM methods are used, not required for core functionality
 
 if TYPE_CHECKING:
     from didlite.keystore import KeyStore
@@ -171,8 +172,11 @@ class AgentIdentity:
         if "d" not in jwk:
             raise ValueError("Invalid JWK: missing private key 'd' field (cannot create AgentIdentity from public key only)")
 
-        # Decode private key (with padding)
-        d_padded = jwk["d"] + "=" * (4 - len(jwk["d"]) % 4)
+        # Decode private key (with correct padding)
+        # SECURITY: Fix base64 padding calculation (RFC 7517 compliance)
+        # Reference: PHASE_5 VULN-2, Issue #34
+        # Correct formula: add 0, 1, 2, or 3 equals signs based on length modulo 4
+        d_padded = jwk["d"] + "=" * (-len(jwk["d"]) % 4)
         private_key_bytes = base64.urlsafe_b64decode(d_padded)
 
         if len(private_key_bytes) != 32:
@@ -196,6 +200,11 @@ class AgentIdentity:
             PEM format is the traditional format used by OpenSSL and other tools.
             Private keys use PKCS8 format, public keys use SubjectPublicKeyInfo format.
         """
+        # SECURITY: Lazy import cryptography (only when PEM methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+
         if include_private:
             # Get private key bytes (seed)
             private_key_bytes = bytes(self.signing_key)[:32]
@@ -249,6 +258,12 @@ class AgentIdentity:
             TypeError: If pem_string is not a str
             ValueError: If the PEM is invalid or contains a public key only
         """
+        # SECURITY: Lazy import cryptography (only when PEM methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import ed25519
+        from cryptography.hazmat.backends import default_backend
+
         # SECURITY: Validate input type
         # Reference: PHASE_1.2_FINDINGS.md MED-5, Issue #13
         if not isinstance(pem_string, str):
@@ -294,6 +309,17 @@ def resolve_did_to_key(did: str) -> VerifyKey:
     Static method to 'Resolve' a did:key string back to a Verifiable Public Key.
     No network calls required.
     """
+    # SECURITY: DoS prevention - validate input type and length
+    # Reference: PHASE_5 VULN-1, Issue #33
+    if not isinstance(did, str):
+        raise TypeError(f"DID must be a string, got {type(did).__name__}")
+
+    # SECURITY: Limit DID length to prevent OOM attacks on edge devices
+    # Typical did:key is ~60 chars, 128 provides safe margin
+    # Reference: PHASE_5 VULN-1, Issue #33
+    if len(did) > 128:
+        raise ValueError(f"Invalid DID: length exceeds 128 characters (got {len(did)})")
+
     if not did.startswith("did:key:"):
         raise ValueError("Invalid DID format. Must start with did:key:")
 

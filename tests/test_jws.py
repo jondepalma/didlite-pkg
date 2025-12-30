@@ -598,3 +598,317 @@ class TestJWSTTLExpiration:
         # The exp should be iat + 3600, not 67890
         assert verified['exp'] == verified['iat'] + 3600
         assert verified['exp'] != 67890
+
+
+class TestPhase5SecurityRegressions:
+    """
+    Regression tests for Phase 5 security fixes (VULN-4, VULN-5, VULN-6)
+
+    These tests ensure the security vulnerabilities identified in Phase 5
+    do not regress in future versions.
+
+    References:
+    - PHASE_5_FINDINGS.md
+    - Issues #36 (VULN-4), #37 (VULN-5), #38 (VULN-6)
+    """
+
+    def test_vuln4_algorithm_enforcement_none_algorithm_attack(self):
+        """
+        VULN-4: Test that 'none' algorithm is rejected (Issue #36)
+
+        Prevents the classic "None Algorithm" JWT attack where an attacker
+        removes the signature and sets alg='none'.
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+        token = create_jws(agent, payload)
+
+        # Manually craft a token with alg='none'
+        segments = token.split('.')
+        header = {
+            "alg": "none",
+            "typ": "JWT",
+            "kid": agent.did
+        }
+
+        fake_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=').decode()
+
+        fake_token = f"{fake_header}.{segments[1]}.{segments[2]}"
+
+        with pytest.raises(ValueError, match="Invalid algorithm: expected 'EdDSA', got 'none'"):
+            verify_jws(fake_token)
+
+    def test_vuln4_algorithm_substitution_attack(self):
+        """
+        VULN-4: Test that other algorithms are rejected (Issue #36)
+
+        Prevents algorithm substitution attacks (e.g., RS256, HS256).
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+        token = create_jws(agent, payload)
+
+        segments = token.split('.')
+
+        # Test various algorithm substitutions
+        malicious_algorithms = ["RS256", "HS256", "ES256", "PS256", "NONE", "EdDSA "]
+
+        for bad_alg in malicious_algorithms:
+            header = {
+                "alg": bad_alg,
+                "typ": "JWT",
+                "kid": agent.did
+            }
+
+            fake_header = base64.urlsafe_b64encode(
+                json.dumps(header, separators=(',', ':')).encode()
+            ).rstrip(b'=').decode()
+
+            fake_token = f"{fake_header}.{segments[1]}.{segments[2]}"
+
+            with pytest.raises(ValueError, match=f"Invalid algorithm: expected 'EdDSA', got '{bad_alg}'"):
+                verify_jws(fake_token)
+
+    def test_vuln4_missing_algorithm_field(self):
+        """
+        VULN-4: Test that missing 'alg' field is rejected (Issue #36)
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+        token = create_jws(agent, payload)
+
+        segments = token.split('.')
+        header = {
+            "typ": "JWT",
+            "kid": agent.did
+            # Missing 'alg' field
+        }
+
+        fake_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=').decode()
+
+        fake_token = f"{fake_header}.{segments[1]}.{segments[2]}"
+
+        with pytest.raises(ValueError, match="Invalid algorithm: expected 'EdDSA', got 'None'"):
+            verify_jws(fake_token)
+
+    def test_vuln5_compact_json_no_whitespace(self):
+        """
+        VULN-5: Test that JWT uses compact JSON serialization (Issue #37)
+
+        RFC 7515 requires compact JSON (no whitespace) for JWS.
+        """
+        agent = AgentIdentity()
+        payload = {"key1": "value1", "key2": "value2", "nested": {"a": "b"}}
+        token = create_jws(agent, payload)
+
+        # Decode header and payload
+        header_b64, payload_b64, _ = token.split('.')
+
+        # Decode to raw JSON strings
+        header_json = base64.urlsafe_b64decode(header_b64 + "==").decode('utf-8')
+        payload_json = base64.urlsafe_b64decode(payload_b64 + "==").decode('utf-8')
+
+        # Verify no whitespace in JSON (compact serialization)
+        assert ' ' not in header_json, "Header JSON should not contain spaces"
+        assert '\n' not in header_json, "Header JSON should not contain newlines"
+        assert '\t' not in header_json, "Header JSON should not contain tabs"
+
+        assert ' ' not in payload_json, "Payload JSON should not contain spaces"
+        assert '\n' not in payload_json, "Payload JSON should not contain newlines"
+        assert '\t' not in payload_json, "Payload JSON should not contain tabs"
+
+        # Verify it uses compact separators
+        assert ',' in header_json, "Should use comma separator"
+        assert ':' in header_json, "Should use colon separator"
+        assert ', ' not in header_json, "Should not have space after comma"
+        assert ': ' not in header_json, "Should not have space after colon"
+
+    def test_vuln6_future_dated_token_rejected(self):
+        """
+        VULN-6: Test that tokens issued in the future are rejected (Issue #38)
+
+        Prevents replay attacks with pre-generated future tokens.
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+
+        # Create token with iat 2 hours in the future (beyond clock skew)
+        future_iat = int(time.time()) + 7200
+
+        # Manually create token with future iat
+        payload_with_future_iat = payload.copy()
+        payload_with_future_iat['iat'] = future_iat
+
+        header = {
+            "alg": "EdDSA",
+            "typ": "JWT",
+            "kid": agent.did
+        }
+
+        b64_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+        b64_payload = base64.urlsafe_b64encode(
+            json.dumps(payload_with_future_iat, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+
+        signing_input = b64_header + b'.' + b64_payload
+        signature = agent.sign(signing_input)
+        b64_signature = base64.urlsafe_b64encode(signature).rstrip(b'=')
+
+        future_token = (signing_input + b'.' + b64_signature).decode('utf-8')
+
+        with pytest.raises(ValueError, match="Token issued in the future"):
+            verify_jws(future_token)
+
+    def test_vuln6_clock_skew_tolerance(self):
+        """
+        VULN-6: Test that clock skew tolerance works (Issue #38)
+
+        Tokens issued up to 60 seconds in the future should be accepted
+        to handle clock drift in distributed systems.
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+
+        # Create token with iat 30 seconds in the future (within tolerance)
+        slightly_future_iat = int(time.time()) + 30
+
+        payload_with_skew = payload.copy()
+        payload_with_skew['iat'] = slightly_future_iat
+
+        header = {
+            "alg": "EdDSA",
+            "typ": "JWT",
+            "kid": agent.did
+        }
+
+        b64_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+        b64_payload = base64.urlsafe_b64encode(
+            json.dumps(payload_with_skew, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+
+        signing_input = b64_header + b'.' + b64_payload
+        signature = agent.sign(signing_input)
+        b64_signature = base64.urlsafe_b64encode(signature).rstrip(b'=')
+
+        skewed_token = (signing_input + b'.' + b64_signature).decode('utf-8')
+
+        # Should accept token within clock skew tolerance
+        verified = verify_jws(skewed_token)
+        assert verified['msg'] == 'test'
+
+    def test_vuln6_past_iat_accepted(self):
+        """
+        VULN-6: Test that past iat values are accepted (Issue #38)
+
+        Tokens issued in the past should always be accepted.
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+
+        # Create token with iat 1 hour in the past
+        past_iat = int(time.time()) - 3600
+
+        payload_with_past_iat = payload.copy()
+        payload_with_past_iat['iat'] = past_iat
+
+        header = {
+            "alg": "EdDSA",
+            "typ": "JWT",
+            "kid": agent.did
+        }
+
+        b64_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+        b64_payload = base64.urlsafe_b64encode(
+            json.dumps(payload_with_past_iat, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+
+        signing_input = b64_header + b'.' + b64_payload
+        signature = agent.sign(signing_input)
+        b64_signature = base64.urlsafe_b64encode(signature).rstrip(b'=')
+
+        past_token = (signing_input + b'.' + b64_signature).decode('utf-8')
+
+        # Should accept token with past iat
+        verified = verify_jws(past_token)
+        assert verified['msg'] == 'test'
+        assert verified['iat'] == past_iat
+
+    def test_vuln6_missing_iat_backward_compat(self):
+        """
+        VULN-6: Test that missing iat is accepted (Issue #38)
+
+        Backward compatibility - tokens without iat should still verify.
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+
+        # Manually create token WITHOUT iat
+        header = {
+            "alg": "EdDSA",
+            "typ": "JWT",
+            "kid": agent.did
+        }
+
+        b64_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+        b64_payload = base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+
+        signing_input = b64_header + b'.' + b64_payload
+        signature = agent.sign(signing_input)
+        b64_signature = base64.urlsafe_b64encode(signature).rstrip(b'=')
+
+        no_iat_token = (signing_input + b'.' + b64_signature).decode('utf-8')
+
+        # Should accept token without iat (backward compatibility)
+        verified = verify_jws(no_iat_token)
+        assert verified['msg'] == 'test'
+        assert 'iat' not in verified
+
+    def test_vuln6_clock_skew_boundary_exactly_60_seconds(self):
+        """
+        VULN-6: Test exact boundary of clock skew (60 seconds) (Issue #38)
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+
+        # Create token with iat exactly 60 seconds in the future (at boundary)
+        boundary_iat = int(time.time()) + 60
+
+        payload_with_boundary = payload.copy()
+        payload_with_boundary['iat'] = boundary_iat
+
+        header = {
+            "alg": "EdDSA",
+            "typ": "JWT",
+            "kid": agent.did
+        }
+
+        b64_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+        b64_payload = base64.urlsafe_b64encode(
+            json.dumps(payload_with_boundary, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+
+        signing_input = b64_header + b'.' + b64_payload
+        signature = agent.sign(signing_input)
+        b64_signature = base64.urlsafe_b64encode(signature).rstrip(b'=')
+
+        boundary_token = (signing_input + b'.' + b64_signature).decode('utf-8')
+
+        # Should accept token at exact boundary
+        verified = verify_jws(boundary_token)
+        assert verified['msg'] == 'test'

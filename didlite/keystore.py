@@ -19,9 +19,10 @@ import os
 import json
 import base64
 from typing import Optional
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# SECURITY: Lazy import for cryptography dependency (lite philosophy)
+# Reference: PHASE_5 VULN-3, Issue #35
+# Only imported when FileKeyStore is used, not required for Memory/Env stores
 
 
 class KeyStore(ABC):
@@ -210,6 +211,11 @@ class FileKeyStore(KeyStore):
 
     def _derive_key(self, salt: bytes) -> bytes:
         """Derive encryption key from password using PBKDF2"""
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -219,6 +225,10 @@ class FileKeyStore(KeyStore):
         return base64.urlsafe_b64encode(kdf.derive(self.password))
 
     def save_seed(self, identifier: str, seed: bytes) -> None:
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.fernet import Fernet
+
         if len(seed) != 32:
             raise ValueError(f"Seed must be exactly 32 bytes, got {len(seed)}")
 
@@ -240,14 +250,25 @@ class FileKeyStore(KeyStore):
 
         file_path = self._get_file_path(identifier)
 
-        # Write with restrictive permissions (owner read/write only)
-        with open(file_path, 'w') as f:
-            json.dump(data, f)
-
-        # Ensure file has secure permissions
-        os.chmod(file_path, 0o600)
+        # SECURITY: Atomic file creation with secure permissions (prevent TOCTOU race)
+        # Reference: PHASE_5 VULN-7, Issue #39
+        # Use os.open() with O_CREAT | O_EXCL to create file atomically with mode 0o600
+        # This prevents the race condition where file is created with default perms
+        # before chmod is called
+        fd = os.open(file_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(data, f)
+        except:
+            # If write fails, close the file descriptor
+            os.close(fd)
+            raise
 
     def load_seed(self, identifier: str) -> Optional[bytes]:
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.fernet import Fernet
+
         file_path = self._get_file_path(identifier)
 
         if not os.path.exists(file_path):

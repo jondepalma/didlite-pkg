@@ -295,10 +295,13 @@ class TestMalformedInputHandling:
             AgentIdentity(seed=huge_seed)
 
         # Oversized DID (create a very long but structurally valid DID)
+        # SECURITY: After PHASE_5 VULN-1 fix, length is checked first
+        # Reference: Issue #33
         huge_data = ED25519_CODEC + (b'x' * 1000)
         huge_multibase = multibase.encode('base58btc', huge_data)
         huge_did = f"did:key:{huge_multibase.decode('utf-8')}"
-        with pytest.raises(ValueError, match="Ed25519 public key must be 32 bytes, got 1000"):
+        # Expect length limit error (caught before multibase decode)
+        with pytest.raises(ValueError, match="Invalid DID: length exceeds 128 characters"):
             resolve_did_to_key(huge_did)
 
 
