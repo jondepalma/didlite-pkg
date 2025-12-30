@@ -434,3 +434,196 @@ class TestAgentIdentityWithKeyStore:
         agent2 = AgentIdentity(keystore=store, identifier="agent2")
 
         assert agent1.did != agent2.did
+
+
+class TestPhase5KeystoreRegressions:
+    """
+    Regression tests for Phase 5 keystore.py fix (VULN-7)
+
+    References:
+    - PHASE_5_FINDINGS.md
+    - Issue #39 (VULN-7)
+    """
+
+    def setup_method(self):
+        """Create a temporary directory for test files"""
+        self.test_dir = tempfile.mkdtemp()
+
+    def teardown_method(self):
+        """Clean up temporary directory"""
+        if os.path.exists(self.test_dir):
+            shutil.rmtree(self.test_dir)
+
+    def test_vuln7_atomic_file_creation_with_secure_permissions(self):
+        """
+        VULN-7: Test that files are created atomically with mode 0o600 (Issue #39)
+
+        The fix uses os.open() with O_CREAT flag and mode parameter to atomically
+        create the file with secure permissions, preventing TOCTOU race condition.
+        """
+        store = FileKeyStore(self.test_dir, password="test_password")
+        seed = os.urandom(32)
+
+        # Save seed
+        store.save_seed("test_agent", seed)
+
+        # Verify file exists
+        file_path = os.path.join(self.test_dir, "test_agent.enc")
+        assert os.path.exists(file_path)
+
+        # Verify permissions are 0o600 (read/write for owner only)
+        stat_info = os.stat(file_path)
+        permissions = oct(stat_info.st_mode)[-3:]
+        assert permissions == "600", f"Expected 600, got {permissions}"
+
+        # Verify no group/other permissions
+        mode = stat_info.st_mode
+        import stat as stat_module
+        assert not (mode & stat_module.S_IRGRP), "Group should not have read permission"
+        assert not (mode & stat_module.S_IWGRP), "Group should not have write permission"
+        assert not (mode & stat_module.S_IXGRP), "Group should not have execute permission"
+        assert not (mode & stat_module.S_IROTH), "Others should not have read permission"
+        assert not (mode & stat_module.S_IWOTH), "Others should not have write permission"
+        assert not (mode & stat_module.S_IXOTH), "Others should not have execute permission"
+
+    def test_vuln7_file_overwrite_maintains_permissions(self):
+        """
+        VULN-7: Test that overwriting a file maintains secure permissions (Issue #39)
+
+        When saving to an existing file, permissions should remain 0o600.
+        """
+        store = FileKeyStore(self.test_dir, password="test_password")
+        seed1 = os.urandom(32)
+        seed2 = os.urandom(32)
+
+        # Save initial seed
+        store.save_seed("test_agent", seed1)
+        file_path = os.path.join(self.test_dir, "test_agent.enc")
+
+        # Get initial permissions
+        stat_info1 = os.stat(file_path)
+        permissions1 = oct(stat_info1.st_mode)[-3:]
+        assert permissions1 == "600"
+
+        # Overwrite with new seed
+        store.save_seed("test_agent", seed2)
+
+        # Verify permissions are still 0o600
+        stat_info2 = os.stat(file_path)
+        permissions2 = oct(stat_info2.st_mode)[-3:]
+        assert permissions2 == "600", f"Expected 600 after overwrite, got {permissions2}"
+
+        # Verify the new seed was saved
+        loaded_seed = store.load_seed("test_agent")
+        assert loaded_seed == seed2
+
+    def test_vuln7_multiple_files_all_secure(self):
+        """
+        VULN-7: Test that all created files have secure permissions (Issue #39)
+        """
+        store = FileKeyStore(self.test_dir, password="test_password")
+
+        # Create multiple seed files
+        identifiers = ["agent1", "agent2", "agent3", "sensor_001", "device_xyz"]
+        seeds = {identifier: os.urandom(32) for identifier in identifiers}
+
+        for identifier, seed in seeds.items():
+            store.save_seed(identifier, seed)
+
+        # Verify all files have 0o600 permissions
+        for identifier in identifiers:
+            file_path = os.path.join(self.test_dir, f"{identifier}.enc")
+            assert os.path.exists(file_path)
+
+            stat_info = os.stat(file_path)
+            permissions = oct(stat_info.st_mode)[-3:]
+            assert permissions == "600", \
+                f"File {identifier}.enc has permissions {permissions}, expected 600"
+
+    def test_vuln7_file_creation_flags(self):
+        """
+        VULN-7: Verify os.open() is called with correct flags (Issue #39)
+
+        This test verifies the behavior that results from using:
+        os.open(path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+
+        - O_CREAT: Create if doesn't exist
+        - O_WRONLY: Write-only mode
+        - O_TRUNC: Truncate if exists
+        - 0o600: Permissions set atomically
+        """
+        store = FileKeyStore(self.test_dir, password="test_password")
+        seed = os.urandom(32)
+
+        file_path = os.path.join(self.test_dir, "test_agent.enc")
+
+        # Verify file doesn't exist yet
+        assert not os.path.exists(file_path)
+
+        # Save seed (triggers os.open with flags)
+        store.save_seed("test_agent", seed)
+
+        # Verify file was created
+        assert os.path.exists(file_path)
+
+        # Verify permissions are correct
+        stat_info = os.stat(file_path)
+        permissions = oct(stat_info.st_mode)[-3:]
+        assert permissions == "600"
+
+        # Verify file is writable by owner (already tested by successful save)
+        # Verify file contains data
+        assert os.path.getsize(file_path) > 0
+
+    def test_vuln7_no_permission_race_window(self):
+        """
+        VULN-7: Conceptual test - file never exists with insecure permissions (Issue #39)
+
+        The TOCTOU vulnerability existed when code did:
+        1. Create file with default permissions (e.g., 0o644)
+        2. Write data
+        3. chmod to 0o600
+
+        Between steps 1-3, file had insecure permissions.
+
+        The fix uses os.open() with mode parameter, creating the file
+        atomically with 0o600 from the start.
+
+        This test verifies the file never has insecure permissions by checking
+        immediately after creation.
+        """
+        import threading
+        import time
+
+        store = FileKeyStore(self.test_dir, password="test_password")
+        seed = os.urandom(32)
+        file_path = os.path.join(self.test_dir, "race_test.enc")
+
+        permissions_observed = []
+
+        def check_permissions():
+            """Thread that tries to observe file permissions during creation"""
+            for _ in range(1000):  # Check many times
+                if os.path.exists(file_path):
+                    stat_info = os.stat(file_path)
+                    perms = oct(stat_info.st_mode)[-3:]
+                    permissions_observed.append(perms)
+                time.sleep(0.0001)  # Brief sleep
+
+        # Start permission checker thread
+        checker = threading.Thread(target=check_permissions)
+        checker.daemon = True
+        checker.start()
+
+        # Create file (should be atomic with secure permissions)
+        store.save_seed("race_test", seed)
+
+        # Wait for checker to finish
+        checker.join(timeout=2)
+
+        # If we observed any permissions, they should ALL be 600
+        # (no window where file had insecure permissions)
+        if permissions_observed:
+            for perms in permissions_observed:
+                assert perms == "600", \
+                    f"File observed with insecure permissions: {perms}"
