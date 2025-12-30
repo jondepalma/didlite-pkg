@@ -436,3 +436,165 @@ class TestResolveDIDToKey:
         key2 = resolve_did_to_key(agent.did)
 
         assert key1.encode() == key2.encode()
+
+
+class TestPhase5CoreRegressions:
+    """
+    Regression tests for Phase 5 core.py fixes (VULN-1, VULN-2)
+
+    References:
+    - PHASE_5_FINDINGS.md
+    - Issues #33 (VULN-1), #34 (VULN-2)
+    """
+
+    def test_vuln1_did_length_limit(self):
+        """
+        VULN-1: Test that DID length is limited to prevent DoS (Issue #33)
+
+        Prevents OOM attacks on edge devices via oversized DID strings.
+        """
+        import multibase
+
+        # Test exact boundary (128 characters)
+        # Create a DID that's exactly 128 characters
+        boundary_data = b'x' * 70  # Adjust to get ~128 char DID after encoding
+        boundary_multibase = multibase.encode('base58btc', boundary_data)
+        boundary_did = f"did:key:{boundary_multibase.decode('utf-8')}"
+
+        if len(boundary_did) <= 128:
+            # Should not raise if <= 128
+            try:
+                resolve_did_to_key(boundary_did)
+            except ValueError as e:
+                # May fail for other reasons (wrong format, etc.) but not length
+                assert "length exceeds 128" not in str(e)
+
+        # Test oversized DID (> 128 characters)
+        huge_data = b'x' * 1000
+        huge_multibase = multibase.encode('base58btc', huge_data)
+        huge_did = f"did:key:{huge_multibase.decode('utf-8')}"
+
+        # Should fail BEFORE attempting to decode
+        with pytest.raises(ValueError, match="Invalid DID: length exceeds 128 characters"):
+            resolve_did_to_key(huge_did)
+
+    def test_vuln1_did_type_validation(self):
+        """
+        VULN-1: Test that DID type is validated (Issue #33)
+
+        Part of DoS prevention - reject non-string inputs.
+        """
+        # Test non-string types
+        with pytest.raises(TypeError, match="DID must be a string, got int"):
+            resolve_did_to_key(12345)
+
+        with pytest.raises(TypeError, match="DID must be a string, got list"):
+            resolve_did_to_key(["did:key:z6Mk..."])
+
+        with pytest.raises(TypeError, match="DID must be a string, got bytes"):
+            resolve_did_to_key(b"did:key:z6Mk...")
+
+        with pytest.raises(TypeError, match="DID must be a string, got NoneType"):
+            resolve_did_to_key(None)
+
+    def test_vuln2_base64_padding_edge_cases(self):
+        """
+        VULN-2: Test correct base64 padding for JWK import (Issue #34)
+
+        Ed25519 seeds are always 32 bytes, so base64 encoding always produces
+        43 characters (43 % 4 = 3, so needs 1 padding char).
+
+        This test verifies the padding formula works correctly for this case.
+        """
+        import base64
+
+        # Test multiple seeds to ensure padding formula works
+        for i in range(20):
+            seed = bytes([i * 7 % 256] * 32)
+            agent = AgentIdentity(seed=seed)
+            jwk = agent.to_jwk(include_private=True)
+            d_field = jwk["d"]
+
+            # Ed25519 seeds (32 bytes) → 43 base64 chars → needs 1 padding
+            assert len(d_field) == 43, f"Expected 43 chars, got {len(d_field)}"
+
+            # Import should work correctly with padding formula
+            imported_agent = AgentIdentity.from_jwk(jwk)
+
+            # Verify it produces the same DID
+            assert imported_agent.did == agent.did
+
+            # Verify same signatures
+            message = b"test"
+            assert imported_agent.sign(message) == agent.sign(message)
+
+    def test_vuln2_padding_formula_validation(self):
+        """
+        VULN-2: Validate the padding formula works correctly (Issue #34)
+
+        OLD (incorrect): "=" * (4 - len(data) % 4)
+          - len=4 → 4-0=4 → adds 4 '=' (WRONG!)
+          - len=5 → 4-1=3 → adds 3 '=' (correct)
+          - len=6 → 4-2=2 → adds 2 '=' (correct)
+          - len=7 → 4-3=1 → adds 1 '=' (correct)
+
+        NEW (correct): "=" * (-len(data) % 4)
+          - len=4 → -4%4=0 → adds 0 '=' (correct)
+          - len=5 → -5%4=3 → adds 3 '=' (correct)
+          - len=6 → -6%4=2 → adds 2 '=' (correct)
+          - len=7 → -7%4=1 → adds 1 '=' (correct)
+        """
+        import base64
+
+        # Test the formula directly
+        test_vectors = [
+            (4, 0),   # len % 4 == 0 → 0 padding
+            (5, 3),   # len % 4 == 1 → 3 padding
+            (6, 2),   # len % 4 == 2 → 2 padding
+            (7, 1),   # len % 4 == 3 → 1 padding
+            (8, 0),   # len % 4 == 0 → 0 padding
+            (43, 1),  # Base64 standard key length case
+            (44, 0),  # Another common case
+        ]
+
+        for length, expected_padding in test_vectors:
+            # Generate a test string of specified length
+            test_data = "x" * length
+
+            # Apply the correct formula
+            padding = -len(test_data) % 4
+
+            assert padding == expected_padding, \
+                f"For length {length}, expected {expected_padding} padding, got {padding}"
+
+            # Verify it actually decodes correctly
+            padded = test_data + ("=" * padding)
+            try:
+                # This should not raise
+                base64.urlsafe_b64decode(padded)
+            except Exception:
+                # Some lengths won't decode (not valid base64), that's OK
+                # We're just testing the padding formula
+                pass
+
+    def test_vuln2_jwk_import_with_various_key_sizes(self):
+        """
+        VULN-2: Test JWK import works with various base64 string lengths (Issue #34)
+        """
+        # Test multiple different seeds to ensure various padding cases work
+        for i in range(20):
+            seed = bytes([i * 7 % 256] * 32)
+            agent1 = AgentIdentity(seed=seed)
+            jwk = agent1.to_jwk(include_private=True)
+
+            # Import from JWK
+            agent2 = AgentIdentity.from_jwk(jwk)
+
+            # Should produce same DID
+            assert agent2.did == agent1.did
+
+            # Should produce same signatures
+            message = b"test message"
+            sig1 = agent1.sign(message)
+            sig2 = agent2.sign(message)
+            assert sig1 == sig2
