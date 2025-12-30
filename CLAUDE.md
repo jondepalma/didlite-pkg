@@ -78,6 +78,54 @@ python docs/verify_test.py
 
 Expected output: Generates a new DID and signed JWS token.
 
+### Regression Testing Strategy
+
+**IMPORTANT**: After completing major security fixes, feature implementations, or bug fixes, always evaluate whether regression tests are needed to prevent the issue from reappearing.
+
+**When to Add Regression Tests**:
+1. After fixing security vulnerabilities (especially CRITICAL/HIGH severity)
+2. After fixing bugs that could silently break functionality
+3. After implementing features with security implications
+4. After changes that modify core cryptographic operations
+5. After changes to validation/parsing logic
+
+**Where to Add Regression Tests**:
+- `tests/test_core.py` - For core identity and DID resolution fixes
+- `tests/test_jws.py` - For JWT/JWS token creation and validation fixes
+- `tests/test_keystore.py` - For key storage and encryption fixes
+- `tests/test_security.py` - For input validation and attack prevention
+- `tests/test_compliance.py` - For standards compliance verification
+
+**Regression Test Requirements**:
+1. **Specific Issue Reference**: Test docstring must reference the issue number
+2. **Attack Vector Testing**: For security fixes, test the specific attack that was prevented
+3. **Edge Cases**: Test boundary conditions that triggered the bug
+4. **Positive Cases**: Ensure fix doesn't break valid functionality
+5. **Clear Naming**: Use pattern `test_vuln{N}_{description}` or `test_issue{N}_{description}`
+
+**Example Workflow**:
+```bash
+# After implementing security fixes
+pytest -v  # Verify all tests pass
+
+# Evaluate: "Could this vulnerability reappear if someone refactors this code?"
+# If yes, add regression tests
+
+# Run specific regression test class
+pytest tests/test_jws.py::TestPhase5SecurityRegressions -v
+
+# Verify overall test count increased
+pytest --co -q  # Count tests
+```
+
+**Test Coverage Goals**:
+- Core functionality: 100% line coverage
+- Security-critical paths: 100% branch coverage
+- Attack prevention: Explicit tests for each known attack vector
+- Standards compliance: Test suite for each RFC/W3C requirement
+
+See [Phase 5 Regression Tests](tests/test_jws.py#L603) as an example of comprehensive regression test implementation.
+
 ### Dependencies
 - `pynacl>=1.5.0` - Ed25519 signing (libsodium wrapper)
 - `py-multibase>=1.0.0` - Multibase encoding for DID formatting
