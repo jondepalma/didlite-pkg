@@ -19,9 +19,10 @@ import os
 import json
 import base64
 from typing import Optional
-from cryptography.fernet import Fernet
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# SECURITY: Lazy import for cryptography dependency (lite philosophy)
+# Reference: PHASE_5 VULN-3, Issue #35
+# Only imported when FileKeyStore is used, not required for Memory/Env stores
 
 
 class KeyStore(ABC):
@@ -210,6 +211,11 @@ class FileKeyStore(KeyStore):
 
     def _derive_key(self, salt: bytes) -> bytes:
         """Derive encryption key from password using PBKDF2"""
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
@@ -219,6 +225,10 @@ class FileKeyStore(KeyStore):
         return base64.urlsafe_b64encode(kdf.derive(self.password))
 
     def save_seed(self, identifier: str, seed: bytes) -> None:
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.fernet import Fernet
+
         if len(seed) != 32:
             raise ValueError(f"Seed must be exactly 32 bytes, got {len(seed)}")
 
@@ -255,6 +265,10 @@ class FileKeyStore(KeyStore):
             raise
 
     def load_seed(self, identifier: str) -> Optional[bytes]:
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.fernet import Fernet
+
         file_path = self._get_file_path(identifier)
 
         if not os.path.exists(file_path):
