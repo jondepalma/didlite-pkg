@@ -79,8 +79,10 @@ def create_jws(agent: AgentIdentity, payload: dict, expires_in: int = None, exp:
     }
 
     # Base64URL Encode Header & Payload
-    b64_header = base64.urlsafe_b64encode(json.dumps(header).encode()).rstrip(b'=')
-    b64_payload = base64.urlsafe_b64encode(json.dumps(payload_copy).encode()).rstrip(b'=')
+    # SECURITY: Use compact JSON serialization (RFC 7515 compliance)
+    # Reference: PHASE_5 VULN-5, Issue #37
+    b64_header = base64.urlsafe_b64encode(json.dumps(header, separators=(',', ':')).encode()).rstrip(b'=')
+    b64_payload = base64.urlsafe_b64encode(json.dumps(payload_copy, separators=(',', ':')).encode()).rstrip(b'=')
 
     # Create Signing Input
     signing_input = b64_header + b'.' + b64_payload
@@ -120,6 +122,13 @@ def verify_jws(token: str) -> dict:
     # 1. Decode Header to find the 'kid' (Key ID / DID)
     header_data = _b64url_decode(header_segment)
     header = json.loads(header_data)
+
+    # SECURITY: Enforce EdDSA algorithm (prevent "None Algorithm" attacks)
+    # Reference: PHASE_5 VULN-4, Issue #36, RFC 7515 Section 3.1
+    alg = header.get('alg')
+    if alg != 'EdDSA':
+        raise ValueError(f"Invalid algorithm: expected 'EdDSA', got '{alg}'")
+
     signer_did = header.get('kid')
 
     # SECURITY: Validate 'kid' field exists (prevents algorithm confusion attacks)
@@ -139,7 +148,20 @@ def verify_jws(token: str) -> dict:
     payload_data = _b64url_decode(payload_segment)
     payload = json.loads(payload_data)
 
-    # 5. Check Expiration (if present)
+    # 5. Check Issued-At Time (if present) - prevent future-dated tokens
+    # SECURITY: Future-dating protection (RFC 7519 compliance)
+    # Reference: PHASE_5 VULN-6, Issue #38
+    if 'iat' in payload:
+        current_time = int(time.time())
+        iat_time = payload['iat']
+
+        # Allow 60-second clock skew tolerance for distributed systems
+        CLOCK_SKEW_SECONDS = 60
+        if iat_time > current_time + CLOCK_SKEW_SECONDS:
+            future_seconds = iat_time - current_time
+            raise ValueError(f"Token issued in the future (iat is {future_seconds} seconds ahead)")
+
+    # 6. Check Expiration (if present)
     if 'exp' in payload:
         current_time = int(time.time())
         exp_time = payload['exp']
@@ -149,5 +171,5 @@ def verify_jws(token: str) -> dict:
             expired_seconds = current_time - exp_time
             raise ValueError(f"Token expired {expired_seconds} seconds ago")
 
-    # 6. Return Payload
+    # 7. Return Payload
     return payload

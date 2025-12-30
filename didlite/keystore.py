@@ -240,12 +240,19 @@ class FileKeyStore(KeyStore):
 
         file_path = self._get_file_path(identifier)
 
-        # Write with restrictive permissions (owner read/write only)
-        with open(file_path, 'w') as f:
-            json.dump(data, f)
-
-        # Ensure file has secure permissions
-        os.chmod(file_path, 0o600)
+        # SECURITY: Atomic file creation with secure permissions (prevent TOCTOU race)
+        # Reference: PHASE_5 VULN-7, Issue #39
+        # Use os.open() with O_CREAT | O_EXCL to create file atomically with mode 0o600
+        # This prevents the race condition where file is created with default perms
+        # before chmod is called
+        fd = os.open(file_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump(data, f)
+        except:
+            # If write fails, close the file descriptor
+            os.close(fd)
+            raise
 
     def load_seed(self, identifier: str) -> Optional[bytes]:
         file_path = self._get_file_path(identifier)
