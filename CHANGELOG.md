@@ -5,6 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.2] - 2025-12-29
+
+### Security
+- **Phase 5 Security Hardening - 7 vulnerability fixes** (#33-#39)
+  - **VULN-1**: DoS prevention with DID length limit (128 chars) and type validation (#33)
+  - **VULN-2**: Fixed base64 padding calculation for JWK import (RFC 7517 compliance) (#34)
+  - **VULN-3**: Lazy imports for `cryptography` dependency (lite philosophy) (#35)
+  - **VULN-4**: Algorithm enforcement - prevent "None Algorithm" JWT attacks (RFC 7515) (#36)
+  - **VULN-5**: Compact JSON serialization for JWS (RFC 7515 compliance) (#37)
+  - **VULN-6**: Future-dating protection with 60s clock skew tolerance (RFC 7519) (#38)
+  - **VULN-7**: Atomic file creation with secure permissions (0o600) - TOCTOU fix (#39)
+
+### Added
+- **Comprehensive compliance test suite** (`tests/test_compliance.py`) (#40)
+  - 75 tests validating W3C DID Core and RFC JWT/JWS standards
+  - Coverage: DID Method, DID Resolution, JWK, JWS, JWT claims validation
+- **Phase 5 regression tests** - 19 tests preventing vulnerability reintroduction (#41-#45)
+  - `TestPhase5CoreRegressions`: VULN-1, VULN-2 (5 tests)
+  - `TestPhase5SecurityRegressions`: VULN-4, VULN-5, VULN-6 (9 tests)
+  - `TestPhase5KeystoreRegressions`: VULN-7 (5 tests including threading race condition test)
+- **Regression testing strategy** in CLAUDE.md (#44)
+  - When to add regression tests (5 criteria)
+  - Where to add tests (file-specific guidance)
+  - Test coverage goals (100% security-critical paths)
+
+### Changed
+- **Extended lazy imports to keystore.py** (VULN-3 fix)
+  - `cryptography` now imported only when FileKeyStore methods called
+  - MemoryKeyStore and EnvKeyStore work without `cryptography` installed
+  - Maintains "lite" philosophy for edge deployments
+
+### Test Suite Growth
+- **v0.2.1**: 101 tests
+- **v0.2.2**: 205 tests (103% increase)
+- **Coverage**: 95% → 96% (288/299 lines)
+- **New test categories**:
+  - 75 compliance tests (W3C DID Core, RFC 7515/7517/7519)
+  - 19 Phase 5 regression tests
+  - 1 threading race condition test (TOCTOU verification)
+
+### Fixed
+- Base64 padding formula: `"=" * (-len(data) % 4)` (was adding 4 '=' when len%4==0)
+- File permissions race condition in FileKeyStore (atomic creation with 0o600)
+- Algorithm substitution attack vectors (enforce EdDSA-only)
+- Future-dated token acceptance (prevent replay attacks)
+
+### Documentation
+- Added regression testing strategy to CLAUDE.md
+- All security fixes reference specific issues (#33-#39) and PHASE_5_FINDINGS.md
+
+### References
+- PHASE_5_FINDINGS.md - Detailed vulnerability analysis
+- Issues #33-#39 - Individual vulnerability tickets
+- Issue #40 - Compliance test suite
+- Issues #41-#45 - Regression test implementation
+- Issue #46 - Future test coverage improvements (v0.2.3)
+
 ## [0.2.1] - 2025-12-26
 
 ### Fixed

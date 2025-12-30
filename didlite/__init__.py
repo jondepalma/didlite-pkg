@@ -16,7 +16,7 @@
 didlite: Lightweight Identity for Agents & IoT
 """
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 __author__ = "Jon DePalma"
 
 # Expose the main classes to the top level
