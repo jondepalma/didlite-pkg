@@ -260,6 +260,8 @@ class TestRFCJWTJWSCompliance:
 
     def test_jws_signature_validation(self):
         """Test JWS signature verification per RFC 7515"""
+        from nacl.exceptions import BadSignatureError
+
         agent = AgentIdentity()
         payload = {"test": "data"}
         token = create_jws(agent, payload)
@@ -270,12 +272,19 @@ class TestRFCJWTJWSCompliance:
 
         # Tampered signature should fail
         segments = token.split('.')
-        # Flip one bit in the signature
-        tampered_sig = segments[2][:-1] + ('A' if segments[2][-1] != 'A' else 'B')
+
+        # Corrupt the signature more substantially to ensure tampering is detected
+        # Replace middle section of signature, not just last character
+        sig_bytes = list(segments[2])
+        mid_point = len(sig_bytes) // 2
+        # Flip multiple characters to ensure corruption is detected
+        sig_bytes[mid_point] = 'X' if sig_bytes[mid_point] != 'X' else 'Y'
+        sig_bytes[mid_point + 1] = 'Z' if sig_bytes[mid_point + 1] != 'Z' else 'A'
+        tampered_sig = ''.join(sig_bytes)
         tampered_token = f"{segments[0]}.{segments[1]}.{tampered_sig}"
 
         # RFC 7515 Section 5.2: Signature validation must detect tampering
-        with pytest.raises(Exception):  # nacl.exceptions.BadSignatureError
+        with pytest.raises(BadSignatureError):
             verify_jws(tampered_token)
 
     def test_jws_algorithm_enforcement(self):

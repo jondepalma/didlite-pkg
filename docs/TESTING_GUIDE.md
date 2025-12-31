@@ -202,8 +202,9 @@ payload = {"message": "Hello, World!", "user_id": 123}
 token = create_jws(agent, payload)
 print(f"Token: {token[:50]}...")
 
-# Verify the token
-verified = verify_jws(token)
+# Verify the token (returns header and payload as of v0.2.3)
+header, verified = verify_jws(token)
+print(f"Signer DID: {header['kid']}")
 print(f"Verified payload: {verified}")
 ```
 
@@ -245,7 +246,7 @@ payload = {"data": "temporary"}
 token = create_jws(agent, payload, expires_in=2)
 
 # Immediate verification succeeds
-verified = verify_jws(token)
+header, verified = verify_jws(token)
 print(f"Immediate verification: {verified}")
 
 # Wait for expiration
@@ -253,7 +254,7 @@ time.sleep(3)
 
 # Verification fails
 try:
-    verify_jws(token)
+    _, _ = verify_jws(token)
 except ValueError as e:
     print(f"✓ Token expired: {e}")
 ```

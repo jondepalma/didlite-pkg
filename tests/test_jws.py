@@ -913,6 +913,42 @@ class TestPhase5SecurityRegressions:
         _, verified = verify_jws(boundary_token)
         assert verified['msg'] == 'test'
 
+    def test_missing_kid_header_rejected(self):
+        """
+        Test that JWS tokens with missing 'kid' header are rejected.
+
+        This is a critical security check that prevents algorithm confusion attacks.
+        The 'kid' field identifies which key should verify the token.
+
+        Reference: jws.py line 180 (missing coverage)
+        """
+        agent = AgentIdentity()
+        payload = {"msg": "test"}
+
+        # Manually create token WITHOUT kid header
+        header = {
+            "alg": "EdDSA",
+            "typ": "JWT"
+            # No 'kid' field
+        }
+
+        b64_header = base64.urlsafe_b64encode(
+            json.dumps(header, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+        b64_payload = base64.urlsafe_b64encode(
+            json.dumps(payload, separators=(',', ':')).encode()
+        ).rstrip(b'=')
+
+        signing_input = b64_header + b'.' + b64_payload
+        signature = agent.sign(signing_input)
+        b64_signature = base64.urlsafe_b64encode(signature).rstrip(b'=')
+
+        no_kid_token = (signing_input + b'.' + b64_signature).decode('utf-8')
+
+        # Should reject token without kid header
+        with pytest.raises(ValueError, match="JWS header missing required 'kid' field"):
+            verify_jws(no_kid_token)
+
 
 class TestV023JWSEnhancements:
     """Regression tests for v0.2.3 JWS header enhancements (Issues #32, #43, #44)"""
