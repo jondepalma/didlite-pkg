@@ -1,5 +1,17 @@
 # didlite 🆔
 
+![Beta](https://img.shields.io/badge/status-beta-yellow) ![Python](https://img.shields.io/badge/python-3.8+-blue.svg) ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
+
+> ⚠️ **BETA STATUS - SECURITY AUDIT PENDING**
+>
+> This library is in active development and **has not undergone an independent security audit**.
+> While we've conducted comprehensive internal security hardening with [23+ security fixes](https://github.com/jondepalma/didlite-pkg/issues?q=is%3Aissue+is%3Aclosed+label%3Asecurity),
+> we recommend **against production use** until an external audit is complete.
+>
+> **Use at your own risk.** See [SECURITY.md](.github/SECURITY.md) for vulnerability reporting.
+
+---
+
 **Verifiable Identity for Agents, IoT, and Edge Devices.**
 
 `didlite` is a zero-dependency-bloat Python library that generates **W3C Standard Decentralized Identifiers (DIDs)** using `Ed25519` keys.
@@ -44,7 +56,11 @@ Most Identity libraries (SSI) are massive. They require Rust compilers, system b
 
 ## 📦 Installation
 
-    pip install didlite
+```bash
+pip install didlite
+```
+
+**Note:** didlite is currently in beta (v0.2.3). Breaking changes may occur before v1.0.0.
 
 ---
 

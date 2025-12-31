@@ -1,0 +1,70 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "didlite"
+version = "0.2.3"
+description = "Zero-dependency-bloat Python library for W3C Decentralized Identifiers (DIDs) using Ed25519 keys"
+readme = "README.md"
+requires-python = ">=3.8"
+license = "Apache-2.0"
+authors = [
+    {name = "Jon DePalma", email = "security@jondepalma.com"}
+]
+keywords = ["did", "decentralized-identity", "ed25519", "jwt", "jws", "iot", "edge", "ai-agents"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security :: Cryptography",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "pynacl>=1.5.0",
+    "py-multibase>=1.0.0",
+    "cryptography>=41.0.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "authlib>=1.0.0",
+    "hypothesis>=6.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jondepalma/didlite-pkg"
+Documentation = "https://github.com/jondepalma/didlite-pkg#readme"
+Repository = "https://github.com/jondepalma/didlite-pkg"
+Issues = "https://github.com/jondepalma/didlite-pkg/issues"
+Changelog = "https://github.com/jondepalma/didlite-pkg/blob/main/CHANGELOG.md"
+Security = "https://github.com/jondepalma/didlite-pkg/blob/main/.github/SECURITY.md"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --strict-markers"
+
+[tool.coverage.run]
+source = ["didlite"]
+omit = ["*/tests/*", "*/test_*.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
