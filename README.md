@@ -220,16 +220,17 @@ If you just want to check a DID string and get the raw public key bytes:
 
 ## 🧪 Testing & Quality
 
-### Test Coverage (v0.2.3)
+### Test Coverage (v0.2.4)
 
 **Coverage by Module:**
 
 | Module | Coverage | Status |
 |--------|----------|--------|
-| `didlite/core.py` | **98%** | ✅ All security-critical paths tested |
+| `didlite/__init__.py` | **100%** | ✅ Complete coverage |
+| `didlite/core.py` | **96%** | ✅ All security-critical paths tested |
 | `didlite/jws.py` | **99%** | ✅ Algorithm confusion attacks prevented |
-| `didlite/keystore.py` | **95%** | ✅ All storage backends validated |
-| **Overall** | **97.2%** | ✅ Production-ready (321 statements, 312 covered) |
+| `didlite/keystore.py` | **93%** | ✅ All storage backends validated |
+| **Overall** | **95.7%** | ✅ Production-ready (351 statements, 336 covered) |
 
 **Test Suite Breakdown:**
 

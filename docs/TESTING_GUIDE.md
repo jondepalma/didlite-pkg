@@ -151,17 +151,17 @@ open htmlcov/index.html  # macOS
 xdg-open htmlcov/index.html  # Linux
 ```
 
-### Current Coverage (v0.2.3)
+### Current Coverage (v0.2.4)
 
 The test suite provides excellent coverage across all modules:
 
 | Module | Coverage | Details |
 |--------|----------|---------|
 | `didlite/__init__.py` | 100% | Complete coverage |
-| `didlite/core.py` | 98% | 2 defensive assertions uncovered (internal sanity checks) |
+| `didlite/core.py` | 96% | 5 acceptable gaps (TYPE_CHECKING guards + defensive assertions) |
 | `didlite/jws.py` | 99% | 1 generic exception wrapper uncovered |
-| `didlite/keystore.py` | 95% | 6 acceptable gaps (abstract methods + env issue) |
-| **Overall** | **97.2%** | **9 uncovered lines (all acceptable)** |
+| `didlite/keystore.py` | 93% | 9 acceptable gaps (abstract methods + TYPE_CHECKING guards) |
+| **Overall** | **95.7%** | **15 uncovered lines (all acceptable)** |
 
 ### Coverage Policy
 
@@ -169,23 +169,27 @@ The test suite provides excellent coverage across all modules:
 
 **Acceptable gaps** (lines that don't require testing):
 
-1. **Abstract method placeholders** - `pass` statements in ABC base classes
-   - Example: `keystore.py:48, 64, 77`
+1. **TYPE_CHECKING import guards** - Type hint imports only evaluated by static analyzers
+   - Example: `core.py:30-32`, `keystore.py:32-34`
+   - Rationale: These imports never execute at runtime; only used by mypy/pyright
+
+2. **Abstract method placeholders** - `pass` statements in ABC base classes
+   - Example: `keystore.py:76, 92, 105` (updated line numbers post-refactor)
    - Rationale: These should never execute; all concrete implementations are fully tested
 
-2. **Defensive assertions** - Internal sanity checks for library bugs
-   - Example: `core.py:215, 234` (Ed25519 key size validation)
-   - Rationale: PyNaCl guarantees correct sizes; testing would require mocking library internals
+3. **Defensive assertions** - Internal sanity checks for library bugs
+   - Example: `core.py:234, 253` (Ed25519 key size validation)
+   - Rationale: PyNaCl/cryptography guarantee correct sizes; testing would require mocking
 
-3. **Generic exception wrappers** - Catch-all error normalization
-   - Example: `jws.py:281` (ValueError wrapper for non-ValueError exceptions)
+4. **Generic exception wrappers** - Catch-all error normalization
+   - Example: `jws.py:283` (ValueError wrapper for non-ValueError exceptions)
    - Rationale: Specific error paths are tested; this handles edge cases
 
-4. **Environmental test limitations** - Code blocked by test environment issues
-   - Example: `keystore.py:262-265` (FileKeyStore exception handler)
+5. **Environmental test limitations** - Code blocked by test environment issues
+   - Example: `keystore.py:285-288` (FileKeyStore exception handler)
    - Rationale: Cryptography OpenSSL backend corruption in full test suite (works individually)
 
-**Why 97.2% is excellent:**
+**Why 95.7% is excellent:**
 - Security-critical code paths: **100% covered**
 - Cryptographic operations: **100% covered**
 - Attack prevention: **100% covered** (algorithm confusion, missing 'kid', signature tampering)
@@ -460,21 +464,21 @@ print(f"Created 100 tokens in {elapsed:.2f}s ({elapsed*10:.2f}ms each)")
 - ✅ All operations remain suitable for **high-throughput IoT/edge deployments**
 - ✅ Ed25519 + PyNaCl's libsodium wrapper delivers excellent ARM64 performance
 
-## Summary (v0.2.3)
+## Summary (v0.2.4)
 
 - **236 tests** covering all functionality (+135 tests since initial release)
 - **7 test categories**: Compliance, Core, Fuzzing, Integration, JWS, Keystore, Security
-- **Excellent coverage**: 97.2% overall, with 100% on security-critical code
+- **Excellent coverage**: 95.7% overall, with 100% on security-critical code
 - **Fast execution**: Full suite runs in ~11 seconds
 - **3 skipped tests**: 2 resource-intensive fuzzing, 1 environmental issue
 
 ### Test Coverage Statistics
 
 ```
-Total Statements: 321
-Covered: 312
-Missing: 9 (all acceptable per coverage policy)
-Coverage: 97.2%
+Total Statements: 351
+Covered: 336
+Missing: 15 (all acceptable per coverage policy)
+Coverage: 95.7%
 ```
 
 ### Test Results
