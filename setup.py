@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name="didlite",
     version="0.2.3",
-    description="Lightweight, web-only DID:KEY (Ed25519) implementation for Agents",
+    description="Lightweight DID:KEY (Ed25519) implementation for AI Agents, IoT, Edge Computing, etc.",
     packages=find_packages(),
     install_requires=[
         "pynacl>=1.5.0",
