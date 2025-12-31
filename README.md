@@ -1,6 +1,6 @@
 # didlite 🆔
 
-![Beta](https://img.shields.io/badge/status-beta-yellow) ![Python](https://img.shields.io/badge/python-3.8+-blue.svg) ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
+![Beta](https://img.shields.io/badge/status-beta-yellow) ![Python](https://img.shields.io/badge/python-3.9+-blue.svg) ![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)
 
 > ⚠️ **BETA STATUS - SECURITY AUDIT PENDING**
 >
