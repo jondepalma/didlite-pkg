@@ -97,7 +97,7 @@ sequenceDiagram
 pip install didlite
 ```
 
-**Note:** didlite is currently in beta (v0.2.3). Breaking changes may occur before v1.0.0.
+**Note:** didlite is currently in beta (v0.2.4). Breaking changes may occur before v1.0.0.
 
 ---
 
