@@ -23,9 +23,33 @@ from typing import Optional, TYPE_CHECKING
 # SECURITY: Lazy import for cryptography dependency (lite philosophy)
 # Reference: PHASE_5 VULN-3, Issue #35
 # Only imported when PEM methods are used, not required for core functionality
-
+#
+# PyO3 Compatibility: Import at module level (not in functions) to avoid
+# reinitialization errors with pytest --import-mode=importlib
 if TYPE_CHECKING:
     from didlite.keystore import KeyStore
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ed25519
+    from cryptography.hazmat.backends import default_backend
+
+# Lazy singleton pattern - import once on first PEM method use
+_pem_crypto_imported = False
+_serialization = None
+_ed25519 = None
+_default_backend = None
+
+def _ensure_pem_crypto_imported():
+    """Import cryptography modules for PEM support once on first use"""
+    global _pem_crypto_imported, _serialization, _ed25519, _default_backend
+    if not _pem_crypto_imported:
+        from cryptography.hazmat.primitives import serialization as serialization_module
+        from cryptography.hazmat.primitives.asymmetric import ed25519 as ed25519_module
+        from cryptography.hazmat.backends import default_backend as default_backend_func
+
+        _serialization = serialization_module
+        _ed25519 = ed25519_module
+        _default_backend = default_backend_func
+        _pem_crypto_imported = True
 
 # W3C Multicodec prefix for Ed25519 public keys (0xed01)
 # See: https://github.com/multiformats/multicodec/blob/master/table.csv
@@ -202,10 +226,7 @@ class AgentIdentity:
             PEM format is the traditional format used by OpenSSL and other tools.
             Private keys use PKCS8 format, public keys use SubjectPublicKeyInfo format.
         """
-        # SECURITY: Lazy import cryptography (only when PEM methods are used)
-        # Reference: PHASE_5 VULN-3, Issue #35
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import ed25519
+        _ensure_pem_crypto_imported()
 
         if include_private:
             # Get private key bytes (seed)
@@ -217,13 +238,13 @@ class AgentIdentity:
                 raise ValueError(f"Internal error: expected 32-byte private key, got {len(private_key_bytes)}")
 
             # Create cryptography Ed25519 private key
-            crypto_private_key = ed25519.Ed25519PrivateKey.from_private_bytes(private_key_bytes)
+            crypto_private_key = _ed25519.Ed25519PrivateKey.from_private_bytes(private_key_bytes)
 
             # Serialize to PEM
             pem_bytes = crypto_private_key.private_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PrivateFormat.PKCS8,
-                encryption_algorithm=serialization.NoEncryption()
+                encoding=_serialization.Encoding.PEM,
+                format=_serialization.PrivateFormat.PKCS8,
+                encryption_algorithm=_serialization.NoEncryption()
             )
             return pem_bytes.decode('utf-8')
         else:
@@ -236,12 +257,12 @@ class AgentIdentity:
                 raise ValueError(f"Internal error: expected 32-byte public key, got {len(public_key_bytes)}")
 
             # Create cryptography Ed25519 public key
-            crypto_public_key = ed25519.Ed25519PublicKey.from_public_bytes(public_key_bytes)
+            crypto_public_key = _ed25519.Ed25519PublicKey.from_public_bytes(public_key_bytes)
 
             # Serialize to PEM
             pem_bytes = crypto_public_key.public_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
+                encoding=_serialization.Encoding.PEM,
+                format=_serialization.PublicFormat.SubjectPublicKeyInfo
             )
             return pem_bytes.decode('utf-8')
 
@@ -260,11 +281,7 @@ class AgentIdentity:
             TypeError: If pem_string is not a str
             ValueError: If the PEM is invalid or contains a public key only
         """
-        # SECURITY: Lazy import cryptography (only when PEM methods are used)
-        # Reference: PHASE_5 VULN-3, Issue #35
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import ed25519
-        from cryptography.hazmat.backends import default_backend
+        _ensure_pem_crypto_imported()
 
         # SECURITY: Validate input type
         # Reference: PHASE_1.2_FINDINGS.md MED-5, Issue #13
@@ -275,21 +292,21 @@ class AgentIdentity:
 
         try:
             # Try to load as private key
-            crypto_private_key = serialization.load_pem_private_key(
+            crypto_private_key = _serialization.load_pem_private_key(
                 pem_bytes,
                 password=None,
-                backend=default_backend()
+                backend=_default_backend()
             )
 
             # Verify it's an Ed25519 key
-            if not isinstance(crypto_private_key, ed25519.Ed25519PrivateKey):
+            if not isinstance(crypto_private_key, _ed25519.Ed25519PrivateKey):
                 raise ValueError("Invalid PEM: key must be Ed25519")
 
             # Extract the private key bytes (seed)
             private_key_bytes = crypto_private_key.private_bytes(
-                encoding=serialization.Encoding.Raw,
-                format=serialization.PrivateFormat.Raw,
-                encryption_algorithm=serialization.NoEncryption()
+                encoding=_serialization.Encoding.Raw,
+                format=_serialization.PrivateFormat.Raw,
+                encryption_algorithm=_serialization.NoEncryption()
             )
 
             # Create AgentIdentity from the seed
