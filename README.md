@@ -30,9 +30,46 @@ Most Identity libraries (SSI) are massive. They require Rust compilers, system b
 * **ARM64 Native:** Runs seamlessly on Raspberry Pi, AWS Graviton, and M1/M2/M3 Macs.
 
 ### The Problem it Solves
-**Scenario:** You have 1,000 temperature sensors deployed in the field.
-* **The Old Way:** Hardcode a shared API key (Insecure) or manage 1,000 mTLS certificates (Painful).
+
+**Scenario 1: AI Agents** - You deploy autonomous agents that need to communicate and transact with each other.
+* **The Old Way:** Central API keys (shared secrets = single point of failure) or OAuth servers (requires infrastructure).
+* **The `didlite` Way:** Each agent generates its own identity. Messages are cryptographically signed. Trust is mathematical, not infrastructural.
+
+**Scenario 2: IoT at Scale** - You have 1,000 temperature sensors deployed in the field.
+* **The Old Way:** Hardcode a shared API key (insecure) or manage 1,000 mTLS certificates (painful).
 * **The `didlite` Way:** Each sensor generates its own ID at startup. The server verifies the signature mathematically. No database required.
+
+### How It Works: Trust Architecture
+
+```mermaid
+sequenceDiagram
+    participant Agent as AI Agent / IoT Device
+    participant Verifier as Server / Gateway
+
+    Note over Agent: Generate Identity
+    Agent->>Agent: identity = AgentIdentity()
+    Agent->>Agent: did = "did:key:z6Mkh..."
+
+    Note over Agent: Sign Message
+    Agent->>Agent: token = create_jws(identity, payload)
+
+    Agent->>Verifier: Send signed token
+
+    Note over Verifier: Verify Signature
+    Verifier->>Verifier: header, payload = verify_jws(token)
+    Verifier->>Verifier: Extract DID from header['kid']
+    Verifier->>Verifier: Resolve DID → public key
+    Verifier->>Verifier: Verify signature with public key
+
+    alt Signature Valid
+        Verifier->>Agent: ✅ Trust established
+        Note over Verifier: No database lookup needed<br/>DID IS the public key
+    else Signature Invalid
+        Verifier->>Agent: ❌ Reject (tampering detected)
+    end
+```
+
+**Key Insight:** The DID itself encodes the public key (via Multicodec + Multibase). No PKI infrastructure, no certificate authorities, no centralized identity servers.
 
 ### Performance Benchmarks (v0.2.3) - 2025-12-30
 
@@ -66,46 +103,93 @@ pip install didlite
 
 ## 🚀 Quick Start
 
-### 1. The Agent (Sensor/Device)
-The device generates an identity and signs its telemetry data.
+### Example 1: AI Agent Communication
 
-    import didlite
+**Agent 1 (Research Agent)** - Collects and signs lead data:
 
-    # 1. Generate Identity (Ed25519)
-    # In production, pass a 32-byte seed to persist identity across reboots.
-    agent = didlite.AgentIdentity() 
+```python
+import didlite
 
-    print(f"Device ID: {agent.did}")
-    # Output: did:key:z6MkhaXgBZDvotDkL5257...
+# Agent generates its own identity
+research_agent = didlite.AgentIdentity()
+print(f"Research Agent DID: {research_agent.did}")
 
-    # 2. Create a Payload
-    telemetry = {
-        "temp": 24.5,
-        "unit": "C",
-        "timestamp": 1678900000
-    }
+# Create a signed lead record
+lead_data = {
+    "action": "lead_discovered",
+    "company": "Acme Corp",
+    "industry": "manufacturing",
+    "interest": "IoT sensors",
+    "source": "web_research"
+}
 
-    # 3. Sign the Payload (JWS)
-    token = didlite.create_jws(agent, telemetry)
-    print(f"Signed Token: {token}")
+# Sign the lead data
+signed_lead = didlite.create_jws(research_agent, lead_data)
+# Now send signed_lead to CRM agent...
+```
 
-### 2. The Verifier (Server/Gateway)
-The server receives the token. It does **not** need to look up the device in a database. The ID *is* the key.
+**Agent 2 (CRM Agent)** - Verifies and processes:
 
-    import didlite
+```python
+import didlite
 
-    token = "eyJhbGciOiJFZERTQ..." # The token from the device
+# Receive signed lead from research agent
+# signed_lead = "eyJhbGciOiJFZERTQ..."
 
-    try:
-        # 1. Verify Signature & Integrity
-        # If this passes, we KNOW the data came from the DID in the header.
-        header, payload = didlite.verify_jws(token)
+try:
+    # Verify the signature
+    header, payload = didlite.verify_jws(signed_lead)
 
-        print("Valid Data from:", header['kid']) # Signer DID from header
-        print("Temperature:", payload['temp'])
+    # Extract the signer's DID
+    signer_did = header['kid']
 
-    except Exception as e:
-        print(f"SECURITY ALERT: Invalid signature! {e}")
+    print(f"✅ Verified lead from: {signer_did}")
+    print(f"Company: {payload['company']}")
+    print(f"Interest: {payload['interest']}")
+
+    # Add to CRM database with attribution to research_agent...
+
+except Exception as e:
+    print(f"❌ Invalid signature - rejecting lead: {e}")
+```
+
+### Example 2: IoT Sensor Data
+
+**The Sensor** - Generates identity and signs telemetry:
+
+```python
+import didlite
+
+# In production, load seed from secure storage
+sensor = didlite.AgentIdentity()
+
+# Sign telemetry data
+telemetry = {
+    "temp": 24.5,
+    "unit": "C",
+    "timestamp": 1678900000
+}
+
+token = didlite.create_jws(sensor, telemetry)
+# Send token to gateway...
+```
+
+**The Gateway** - Verifies without database lookup:
+
+```python
+import didlite
+
+# token = "eyJhbGciOiJFZERTQ..." # Received from sensor
+
+try:
+    header, payload = didlite.verify_jws(token)
+
+    print(f"Valid data from: {header['kid']}")
+    print(f"Temperature: {payload['temp']}°{payload['unit']}")
+
+except Exception as e:
+    print(f"SECURITY ALERT: Invalid signature! {e}")
+```
 
 ---
 
