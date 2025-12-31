@@ -30,25 +30,21 @@ if TYPE_CHECKING:
     from didlite.keystore import KeyStore
     from cryptography.hazmat.primitives import serialization
     from cryptography.hazmat.primitives.asymmetric import ed25519
-    from cryptography.hazmat.backends import default_backend
 
 # Lazy singleton pattern - import once on first PEM method use
 _pem_crypto_imported = False
 _serialization = None
 _ed25519 = None
-_default_backend = None
 
 def _ensure_pem_crypto_imported():
     """Import cryptography modules for PEM support once on first use"""
-    global _pem_crypto_imported, _serialization, _ed25519, _default_backend
+    global _pem_crypto_imported, _serialization, _ed25519
     if not _pem_crypto_imported:
         from cryptography.hazmat.primitives import serialization as serialization_module
         from cryptography.hazmat.primitives.asymmetric import ed25519 as ed25519_module
-        from cryptography.hazmat.backends import default_backend as default_backend_func
 
         _serialization = serialization_module
         _ed25519 = ed25519_module
-        _default_backend = default_backend_func
         _pem_crypto_imported = True
 
 # W3C Multicodec prefix for Ed25519 public keys (0xed01)
@@ -292,10 +288,10 @@ class AgentIdentity:
 
         try:
             # Try to load as private key
+            # Note: backend parameter deprecated in cryptography>=3.4
             crypto_private_key = _serialization.load_pem_private_key(
                 pem_bytes,
-                password=None,
-                backend=_default_backend()
+                password=None
             )
 
             # Verify it's an Ed25519 key
