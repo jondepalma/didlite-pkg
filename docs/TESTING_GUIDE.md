@@ -36,14 +36,17 @@ Expected output: Generates a new DID and signed JWS token with verification.
 
 ## Test Suite Overview
 
-The test suite contains **101 tests** organized into 4 categories:
+The test suite contains **236 tests** organized into 7 categories:
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| Core (`test_core.py`) | 30 | Identity generation, DID resolution, JWK/PEM export/import, security validation |
-| JWS (`test_jws.py`) | 34 | Token creation, verification, TTL expiration |
-| Keystore (`test_keystore.py`) | 32 | All storage backends (Memory, Env, File), corruption detection |
+| Compliance (`test_compliance.py`) | 18 | W3C DID & RFC 7515/7519 JWT/JWS standards verification |
+| Core (`test_core.py`) | 37 | Identity generation, DID resolution, JWK/PEM export/import, security validation |
+| Fuzzing (`test_fuzzing.py`) | 32 | Malformed inputs, attack scenarios, DoS prevention |
 | Integration (`test_integration.py`) | 5 | Authlib interoperability |
+| JWS (`test_jws.py`) | 63 | Token creation, verification, TTL expiration, header validation |
+| Keystore (`test_keystore.py`) | 49 | All storage backends (Memory, Env, File), corruption detection |
+| Security (`test_security.py`) | 32 | Error message sanitization, input validation |
 
 ## Running Specific Test Categories
 
@@ -148,17 +151,17 @@ open htmlcov/index.html  # macOS
 xdg-open htmlcov/index.html  # Linux
 ```
 
-### Current Coverage
+### Current Coverage (v0.2.3)
 
 The test suite provides excellent coverage across all modules:
 
 | Module | Coverage | Details |
 |--------|----------|---------|
 | `didlite/__init__.py` | 100% | Complete coverage |
-| `didlite/core.py` | 100% | Complete coverage ✨ |
-| `didlite/jws.py` | 98% | 1 defensive exception handler uncovered |
-| `didlite/keystore.py` | 95% | 5 acceptable gaps (see policy below) |
-| **Overall** | **98%** | **6 uncovered lines (all acceptable)** |
+| `didlite/core.py` | 98% | 2 defensive assertions uncovered (internal sanity checks) |
+| `didlite/jws.py` | 99% | 1 generic exception wrapper uncovered |
+| `didlite/keystore.py` | 95% | 6 acceptable gaps (abstract methods + env issue) |
+| **Overall** | **97.2%** | **9 uncovered lines (all acceptable)** |
 
 ### Coverage Policy
 
@@ -167,21 +170,26 @@ The test suite provides excellent coverage across all modules:
 **Acceptable gaps** (lines that don't require testing):
 
 1. **Abstract method placeholders** - `pass` statements in ABC base classes
-   - Example: `keystore.py:33, 49, 62`
+   - Example: `keystore.py:48, 64, 77`
    - Rationale: These should never execute; all concrete implementations are fully tested
 
-2. **Defensive exception handlers** - Generic wrappers for truly unexpected errors
-   - Example: `jws.py:127`
-   - Rationale: Main error paths are comprehensively tested; these catch edge cases
+2. **Defensive assertions** - Internal sanity checks for library bugs
+   - Example: `core.py:215, 234` (Ed25519 key size validation)
+   - Rationale: PyNaCl guarantees correct sizes; testing would require mocking library internals
 
-3. **Trivial edge cases** - Simple operations already tested in similar contexts
-   - Example: `keystore.py:142, 263` (delete non-existent seed returns False)
-   - Rationale: Minimal business logic value; pattern tested in other implementations
+3. **Generic exception wrappers** - Catch-all error normalization
+   - Example: `jws.py:281` (ValueError wrapper for non-ValueError exceptions)
+   - Rationale: Specific error paths are tested; this handles edge cases
 
-**Why 98% is excellent:**
-- Security-critical code paths: 100% covered
-- Cryptographic operations: 100% covered
-- Data integrity checks: 100% covered
+4. **Environmental test limitations** - Code blocked by test environment issues
+   - Example: `keystore.py:262-265` (FileKeyStore exception handler)
+   - Rationale: Cryptography OpenSSL backend corruption in full test suite (works individually)
+
+**Why 97.2% is excellent:**
+- Security-critical code paths: **100% covered**
+- Cryptographic operations: **100% covered**
+- Attack prevention: **100% covered** (algorithm confusion, missing 'kid', signature tampering)
+- Data integrity checks: **100% covered**
 - All keystore implementations: Fully tested
 - Remaining gaps are defensive/abstract code with minimal security impact
 
@@ -202,8 +210,9 @@ payload = {"message": "Hello, World!", "user_id": 123}
 token = create_jws(agent, payload)
 print(f"Token: {token[:50]}...")
 
-# Verify the token
-verified = verify_jws(token)
+# Verify the token (returns header and payload as of v0.2.3)
+header, verified = verify_jws(token)
+print(f"Signer DID: {header['kid']}")
 print(f"Verified payload: {verified}")
 ```
 
@@ -245,7 +254,7 @@ payload = {"data": "temporary"}
 token = create_jws(agent, payload, expires_in=2)
 
 # Immediate verification succeeds
-verified = verify_jws(token)
+header, verified = verify_jws(token)
 print(f"Immediate verification: {verified}")
 
 # Wait for expiration
@@ -253,7 +262,7 @@ time.sleep(3)
 
 # Verification fails
 try:
-    verify_jws(token)
+    _, _ = verify_jws(token)
 except ValueError as e:
     print(f"✓ Token expired: {e}")
 ```
@@ -431,49 +440,56 @@ elapsed = time.time() - start
 print(f"Created 100 tokens in {elapsed:.2f}s ({elapsed*10:.2f}ms each)")
 ```
 
-### Performance and Benchmark Results 2025-12-23
+### Performance Benchmarks (v0.2.3) - 2025-12-30
 
 ***Environment: Raspberry Pi 5 8GB***
 
-**Performance Test Results**
+**Performance Test Results (1000 iterations each)**
 
-Identity Generation:
-- Generated 100 identities in 0.01s
-- Average: **0.09ms per identity**
+| Operation | Avg Time | Throughput | Notes |
+|-----------|----------|------------|-------|
+| Identity Generation | 0.11ms | ~9,200/sec | No overhead from v0.2.3 changes |
+| Token Creation | 0.08ms | ~13,100/sec | Includes `iat` timestamp validation |
+| Token Verification | 0.24ms | ~4,200/sec | Now returns `(header, payload)` tuple |
+| DID Extraction | 0.01ms | ~190,000/sec | **NEW** - Fast header parsing without signature verification |
+| Custom Headers | 0.08ms | ~13,000/sec | **NEW** - Zero overhead for custom `typ`, etc. |
 
-Token Creation:
-- Created 100 tokens in 0.01s
-- Average: **0.12ms per token**
+**Key Findings:**
+- ✅ v0.2.3 header enhancements add **negligible overhead** (<0.01ms)
+- ✅ `extract_signer_did()` is **~24x faster** than full verification
+- ✅ All operations remain suitable for **high-throughput IoT/edge deployments**
+- ✅ Ed25519 + PyNaCl's libsodium wrapper delivers excellent ARM64 performance
 
-**Outcome**
-The didlite library is extremely fast for cryptographic operations:
-- ~11,000 identities/second generation rate
-- ~8,300 tokens/second signing rate
+## Summary (v0.2.3)
 
-This demonstrates the library's fitness for edge/IoT deployments where performance matters. The Ed25519 algorithm combined with PyNaCl's libsodium wrapper provides excellent performance even on ARM64 hardware.
-
-## Summary
-
-- **101 tests** covering all functionality
-- **4 test categories**: Core, JWS, Keystore, Integration
-- **Excellent coverage**: 98% overall, with 100% on security-critical code
-- **Fast execution**: Full suite runs in ~7.7 seconds
-- **No skipped tests**: All tests are active and passing
+- **236 tests** covering all functionality (+135 tests since initial release)
+- **7 test categories**: Compliance, Core, Fuzzing, Integration, JWS, Keystore, Security
+- **Excellent coverage**: 97.2% overall, with 100% on security-critical code
+- **Fast execution**: Full suite runs in ~11 seconds
+- **3 skipped tests**: 2 resource-intensive fuzzing, 1 environmental issue
 
 ### Test Coverage Statistics
 
 ```
-Total Statements: 251
-Covered: 245
-Missing: 6 (all acceptable per coverage policy)
-Coverage: 98%
+Total Statements: 321
+Covered: 312
+Missing: 9 (all acceptable per coverage policy)
+Coverage: 97.2%
+```
+
+### Test Results
+
+```
+233 passed, 3 skipped
+0 failures
 ```
 
 ### Coverage by Priority
 
-- **Security-critical code**: 100% (cryptographic operations, key validation)
-- **Data integrity**: 100% (corruption detection, validation)
-- **Business logic**: 98%+ (all core functionality)
+- **Security-critical code**: 100% (cryptographic operations, key validation, attack prevention)
+- **Attack surfaces**: 100% (algorithm confusion, missing 'kid', signature tampering, token replay)
+- **Data integrity**: 100% (corruption detection, validation, expiration)
+- **Business logic**: 97%+ (all core functionality)
 - **Defensive code**: Partially covered (acceptable gaps documented)
 
 For questions or issues with testing, refer to the main README.md or open an issue on Gitea.

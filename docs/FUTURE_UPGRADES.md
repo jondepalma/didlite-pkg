@@ -35,18 +35,34 @@ didlite follows the **"SQLite for decentralized identity"** approach:
 
 ## Planned Features
 
-### v0.2.x - Hardening (Current)
+### v0.2.x - Hardening (Current - v0.2.3)
 **Focus:** Production readiness and stability
 
-- [x] Security audit (Phases 1-3 complete)
+**Completed in v0.2.2 (2025-12-29):**
+- [x] Security audit - Phase 5 complete (7 vulnerability fixes)
 - [x] JWK and PEM export/import
 - [x] TTL expiration support
-- [x] Pluggable key storage
-- [ ] W3C DID and JWT/JWS standards compliance verification
-- [ ] Dependency security audit
-- [ ] Performance benchmarking
+- [x] Pluggable key storage (MemoryKeyStore, EnvKeyStore, FileKeyStore)
+- [x] W3C DID and JWT/JWS standards compliance verification
+  - 75 compliance tests added (W3C DID Core, RFC 7515/7517/7519)
+  - Algorithm enforcement (prevent "None Algorithm" attacks)
+  - Compact JSON serialization (RFC 7515)
+  - Future-dating protection with clock skew tolerance
+- [x] Lazy import optimization (cryptography only loaded when needed)
+- [x] Performance benchmarking (Raspberry Pi 5: ~11k identities/sec, ~8.3k tokens/sec)
 
-**Deliverable:** Production-safe library with stable API
+**Completed in v0.2.3 (2025-12-30):**
+- [x] JWS header enhancements (custom headers support for plugins)
+- [x] Breaking change: verify_jws() returns (header, payload) tuple
+- [x] extract_signer_did() helper function for fast DID extraction
+- [x] Test coverage improved to 97% (232 tests)
+- [x] Plugin ecosystem readiness (AP2, OAuth, SIOP)
+
+**Remaining for v0.2.x:**
+- [ ] Dependency security audit (automated scanning)
+- [ ] External security audit (penetration testing)
+
+**Deliverable:** ✅ Production-safe library with stable API achieved
 
 ---
 
