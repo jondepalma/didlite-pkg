@@ -41,7 +41,7 @@ def _b64url_decode(data: str) -> bytes:
     padded_data = data + ('=' * padding_needed)
     return base64.urlsafe_b64decode(padded_data)
 
-def create_jws(agent: AgentIdentity, payload: dict, expires_in: int = None, exp: int = None) -> str:
+def create_jws(agent: AgentIdentity, payload: dict, expires_in: int = None, exp: int = None, headers: dict = None) -> str:
     """
     Creates a compact JWS (JSON Web Signature).
     Similar to a JWT but signed with Ed25519.
@@ -51,13 +51,25 @@ def create_jws(agent: AgentIdentity, payload: dict, expires_in: int = None, exp:
         payload: The payload data to include in the token
         expires_in: Optional time-to-live in seconds (e.g., 3600 for 1 hour)
         exp: Optional absolute expiration time as Unix timestamp
+        headers: Optional custom headers to merge with default headers
 
     Returns:
         A compact JWS token string
 
     Note:
         If both expires_in and exp are provided, exp takes precedence.
-        The token automatically includes 'iat' (issued at) claim.
+        The token automatically includes 'iat' (issued at) claim in both header and payload.
+        Custom headers will override defaults (except 'alg', 'kid', and 'iat' which are protected).
+
+    Examples:
+        # AP2 Plugin - Intent Mandate
+        token = create_jws(agent, payload, headers={"typ": "application/ap2-intent+jwt"})
+
+        # OAuth Plugin - DPoP token
+        token = create_jws(agent, payload, headers={"typ": "dpop+jwt"})
+
+        # SIOP Plugin - SIOP ID token
+        token = create_jws(agent, payload, headers={"typ": "siop+jwt"})
     """
     # Make a copy to avoid mutating the original payload
     payload_copy = payload.copy()
@@ -72,11 +84,27 @@ def create_jws(agent: AgentIdentity, payload: dict, expires_in: int = None, exp:
     elif expires_in is not None:
         payload_copy['exp'] = current_time + expires_in
 
+    # Build default header
     header = {
         "alg": "EdDSA",
         "typ": "JWT",
-        "kid": agent.did
+        "kid": agent.did,
+        "iat": current_time
     }
+
+    # Merge custom headers if provided
+    # Custom headers can override 'typ' but NOT 'alg', 'kid', or 'iat' (security-critical)
+    if headers:
+        # Make a copy to avoid mutating the input
+        custom_headers = headers.copy()
+
+        # Remove any attempt to override security-critical fields
+        custom_headers.pop('alg', None)
+        custom_headers.pop('kid', None)
+        custom_headers.pop('iat', None)
+
+        # Merge remaining custom headers (typ and any others)
+        header.update(custom_headers)
 
     # Base64URL Encode Header & Payload
     # SECURITY: Use compact JSON serialization (RFC 7515 compliance)
@@ -93,20 +121,36 @@ def create_jws(agent: AgentIdentity, payload: dict, expires_in: int = None, exp:
 
     return (signing_input + b'.' + b64_signature).decode('utf-8')
 
-def verify_jws(token: str) -> dict:
+def verify_jws(token: str) -> tuple[dict, dict]:
     """
-    Verifies a JWS. Returns the payload if valid, raises error if not.
+    Verifies a JWS token and returns both header and payload.
 
     Args:
         token: The compact JWS token string to verify
 
     Returns:
-        The verified payload as a dictionary
+        tuple[dict, dict]: (header, payload) where:
+            - header: dict containing alg, typ, kid, iat, etc.
+            - payload: dict containing the verified claims
 
     Raises:
         ValueError: Token format is invalid, expired, or DID is invalid
         BadSignatureError: Signature verification failed
         json.JSONDecodeError: Header or payload contains invalid JSON
+
+    Examples:
+        # Get both header and payload
+        header, payload = verify_jws(token)
+        signer_did = header['kid']
+        message = payload['message']
+
+        # Ignore header if you don't need it
+        _, payload = verify_jws(token)
+        message = payload['message']
+
+    Note:
+        This is a breaking change from v0.2.2 which returned only the payload.
+        See VERIFY_JWS_CHANGE.md for migration guide.
     """
     # SECURITY: Validate token format before unpacking
     # Reference: SECURITY_FINDINGS.md HIGH-1, Issue #6
@@ -171,5 +215,67 @@ def verify_jws(token: str) -> dict:
             expired_seconds = current_time - exp_time
             raise ValueError(f"Token expired {expired_seconds} seconds ago")
 
-    # 7. Return Payload
-    return payload
+    # 7. Return Both Header and Payload
+    return (header, payload)
+
+def extract_signer_did(token: str) -> str:
+    """
+    Extract the signer's DID from a JWS token without verification.
+
+    Useful for routing, logging, and rate limiting before expensive signature verification.
+
+    WARNING: This does NOT verify the signature. Always call verify_jws() before
+    trusting the payload or making security decisions.
+
+    Args:
+        token: The JWS token string
+
+    Returns:
+        The DID from the kid header field
+
+    Raises:
+        ValueError: If token is malformed or missing kid header
+
+    Examples:
+        # Fast DID extraction for logging
+        try:
+            signer_did = extract_signer_did(token)
+            logger.info(f"Request from {signer_did}")
+        except ValueError:
+            logger.warning("Malformed token received")
+
+        # Then verify if needed
+        header, payload = verify_jws(token)
+
+    Note:
+        This function is for performance optimization in routing and logging scenarios.
+        It performs minimal validation and does NOT check the signature.
+    """
+    try:
+        # Split token into segments
+        segments = token.split('.')
+        if len(segments) != 3:
+            raise ValueError(
+                f"Invalid JWS format: expected 3 segments (header.payload.signature), "
+                f"got {len(segments)}"
+            )
+
+        header_segment = segments[0]
+
+        # Decode header
+        header_data = _b64url_decode(header_segment)
+        header = json.loads(header_data)
+
+        # Extract DID from kid field
+        did = header.get('kid')
+
+        if not did:
+            raise ValueError("Token missing 'kid' header field")
+
+        return did
+
+    except (ValueError, json.JSONDecodeError, Exception) as e:
+        # Normalize all errors to ValueError with descriptive message
+        if isinstance(e, ValueError):
+            raise
+        raise ValueError(f"Invalid JWS token: {e}")
