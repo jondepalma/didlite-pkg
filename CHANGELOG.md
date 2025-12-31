@@ -5,6 +5,89 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2025-12-30
+
+### ⚠️ BREAKING CHANGES
+- **`verify_jws()` now returns `(header, payload)` tuple instead of just `payload`** (#32)
+  - **Migration**: Change `payload = verify_jws(token)` to `_, payload = verify_jws(token)`
+  - **Benefit**: Access to header information (kid, alg, typ, iat) without re-parsing
+  - **Impact**: ~10 usage sites in didlite-examples, ~200+ test cases updated
+  - See [docs/dev-design/VERIFY_JWS_CHANGE.md](docs/dev-design/VERIFY_JWS_CHANGE.md) for full migration guide
+
+### Added
+- **Custom JWS headers support** - `create_jws()` accepts `headers` parameter (#43)
+  - Enables custom `typ` headers for plugin ecosystems (AP2, OAuth, SIOP)
+  - Protected fields: `alg`, `kid`, `iat` cannot be overridden (security-critical)
+  - Example: `create_jws(agent, payload, headers={"typ": "dpop+jwt"})`
+  - **Unblocks**: didlite-ap2, didlite-oauth, didlite-siop plugin implementations
+- **`extract_signer_did()` helper function** - Fast DID extraction without verification (#44)
+  - Useful for routing, logging, rate limiting before expensive signature verification
+  - WARNING: Does NOT verify signature - always call `verify_jws()` for security decisions
+  - Performance: ~2x faster than `verify_jws()` for DID-only extraction
+- **Header timestamp (`iat`) now included in JWS header** (#43)
+  - Both header and payload contain `iat` claim for audit trail
+  - Enables header-based timestamp validation in plugins
+
+### Added - Test Coverage
+- **30 new regression tests for v0.2.3 features** (#32, #43, #44, #46)
+  - 19 tests for JWS header enhancements (custom headers, tuple return, extract_signer_did)
+  - 11 tests for Issue #46 coverage gaps (VULN-3, FileKeyStore, EnvKeyStore edge cases)
+- **Coverage improvement**: 96% → 97% (10 fewer uncovered lines)
+- **Total test count**: 205 → 232 tests (13% increase)
+
+### Changed
+- **All existing tests updated** for `verify_jws()` tuple return (203 tests across 5 files)
+  - Pattern: `verified = verify_jws(token)` → `_, verified = verify_jws(token)`
+  - Files updated: test_jws.py, test_compliance.py, test_fuzzing.py, test_integration.py, test_security.py
+
+### Fixed
+- Issue #46: Added missing test coverage for:
+  - VULN-3 lazy import verification (cryptography not loaded until needed)
+  - FileKeyStore exception paths (corrupted JSON, missing fields, write failures)
+  - EnvKeyStore edge cases (invalid base64, wrong length, nonexistent variables)
+
+### Plugin Ecosystem Readiness
+This release unblocks three planned plugin packages:
+- **didlite-ap2**: Agent Payment Protocol (mandate signing with custom headers)
+- **didlite-oauth**: OAuth/OIDC integration (DPoP tokens with custom typ)
+- **didlite-siop**: Self-Issued OpenID Provider v2 (SIOP ID tokens)
+
+All plugins require `didlite>=0.2.3` for custom header support and tuple return values.
+
+### Migration Guide
+**For applications using `verify_jws()`:**
+
+```python
+# BEFORE (v0.2.2)
+payload = verify_jws(token)
+message = payload['message']
+
+# AFTER (v0.2.3) - Option 1: Ignore header
+_, payload = verify_jws(token)
+message = payload['message']
+
+# AFTER (v0.2.3) - Option 2: Use header
+header, payload = verify_jws(token)
+signer_did = header['kid']
+message = payload['message']
+```
+
+**Automated migration** for didlite-examples:
+```bash
+sed -i 's/payload = verify_jws(/_, payload = verify_jws(/g' *.py
+sed -i 's/verified = verify_jws(/_, verified = verify_jws(/g' *.py
+```
+
+### References
+- Issue #32: Change verify_jws() to return both header and payload
+- Issue #43: Add optional headers parameter to create_jws()
+- Issue #44: Add extract_signer_did() helper function
+- Issue #46: Expand test coverage for Phase 5 regression tests
+- Design doc: [docs/dev-design/VERIFY_JWS_CHANGE.md](docs/dev-design/VERIFY_JWS_CHANGE.md)
+- Planning doc: [docs/dev-design/PHASE_5_IMPLEMENTATION_PLAN.md](docs/dev-design/PHASE_5_IMPLEMENTATION_PLAN.md)
+
+---
+
 ## [0.2.2] - 2025-12-29
 
 ### Security

@@ -412,7 +412,7 @@ class TestMalformedInputs:
         try:
             huge_token = create_jws(identity, {"data": huge_payload})
             # Verification should handle it gracefully
-            payload = verify_jws(huge_token)
+            _, payload = verify_jws(huge_token)
             assert payload["data"] == huge_payload
         except (ValueError, MemoryError):
             # Acceptable to reject oversized payloads
@@ -503,11 +503,11 @@ class TestAttackScenarios:
         token = create_jws(identity, {"command": "unlock_door", "timestamp": 1234567890})
 
         # First verification succeeds
-        payload1 = verify_jws(token)
+        _, payload1 = verify_jws(token)
         assert payload1["command"] == "unlock_door"
 
         # Replay: verification still succeeds (NO replay protection in library)
-        payload2 = verify_jws(token)
+        _, payload2 = verify_jws(token)
         assert payload2["command"] == "unlock_door"
 
         # This demonstrates that replay protection is APPLICATION responsibility
@@ -592,7 +592,7 @@ class TestCryptographicProperties:
 
         try:
             token = create_jws(identity, payload_dict)
-            recovered_payload = verify_jws(token)
+            _, recovered_payload = verify_jws(token)
 
             # Payload must match (create_jws adds 'iat' claim automatically)
             # Note: If user's payload has 'iat' or 'exp', they get overwritten by create_jws

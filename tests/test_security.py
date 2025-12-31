@@ -225,7 +225,7 @@ class TestJWSSegmentValidation:
         """Ensure valid tokens still verify"""
         identity = AgentIdentity()
         token = create_jws(identity, {"test": "data"})
-        payload = verify_jws(token)
+        _, payload = verify_jws(token)
         assert payload["test"] == "data"
 
 
@@ -251,7 +251,7 @@ class TestBase64PaddingCorrectness:
 
         for payload in payloads:
             token = create_jws(identity, payload)
-            verified_payload = verify_jws(token)
+            _, verified_payload = verify_jws(token)
             assert verified_payload["a" if "a" in payload else ("test" if "test" in payload else ("longer" if "longer" in payload else "x"))] == payload["a" if "a" in payload else ("test" if "test" in payload else ("longer" if "longer" in payload else "x"))]
 
     def test_interoperability_maintained(self):
@@ -262,7 +262,7 @@ class TestBase64PaddingCorrectness:
         for i in range(1, 50):
             payload = {"data": "x" * i}
             token = create_jws(identity, payload)
-            verified = verify_jws(token)
+            _, verified = verify_jws(token)
             assert verified["data"] == "x" * i
 
 
@@ -399,7 +399,7 @@ class TestSecurityRegressions:
         for length in [1, 5, 10, 20, 50, 100]:
             payload = {"data": "x" * length}
             token = create_jws(identity, payload)
-            verified = verify_jws(token)
+            _, verified = verify_jws(token)
             assert verified["data"] == "x" * length
 
 

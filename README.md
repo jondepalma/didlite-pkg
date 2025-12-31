@@ -86,9 +86,9 @@ The server receives the token. It does **not** need to look up the device in a d
     try:
         # 1. Verify Signature & Integrity
         # If this passes, we KNOW the data came from the DID in the header.
-        payload = didlite.verify_jws(token)
-        
-        print("Valid Data from:", payload['iss']) # Issuer DID is auto-embedded
+        header, payload = didlite.verify_jws(token)
+
+        print("Valid Data from:", header['kid']) # Signer DID from header
         print("Temperature:", payload['temp'])
 
     except Exception as e:

@@ -52,7 +52,7 @@ class TestAuthlibIntegration:
         token = jws_authlib.serialize_compact(protected, payload, authlib_key)
 
         # Verify with didlite
-        verified = verify_jws(token.decode('utf-8') if isinstance(token, bytes) else token)
+        _, verified = verify_jws(token.decode('utf-8') if isinstance(token, bytes) else token)
         assert verified["message"] == "Hello from authlib"
         assert verified["id"] == 456
 
@@ -101,7 +101,7 @@ class TestAuthlibIntegration:
         agent2 = AgentIdentity.from_jwk(exported_jwk)
 
         # Verify token with reimported key
-        verified = verify_jws(token1)
+        _, verified = verify_jws(token1)
         assert verified["data"] == "roundtrip test"
         assert verified["count"] == 789
 
@@ -128,7 +128,7 @@ class TestJWKRoundtrip:
         agent2 = AgentIdentity.from_jwk(jwk_dict)
 
         # Verify token with reimported key
-        verified = verify_jws(token1)
+        _, verified = verify_jws(token1)
         assert verified["test"] == "data"
         assert verified["number"] == 42
 

@@ -227,7 +227,7 @@ class TestRFCJWTJWSCompliance:
         payload = {"test": "data"}
         token = create_jws(agent, payload)
 
-        verified_payload = verify_jws(token)
+        _, verified_payload = verify_jws(token)
 
         # RFC 7519 Section 4.1.6: 'iat' (issued at) claim
         assert 'iat' in verified_payload, "JWT must contain 'iat' (issued at) claim"
@@ -254,7 +254,7 @@ class TestRFCJWTJWSCompliance:
 
         # Create valid token
         valid_token = create_jws(agent, payload, exp=int(time.time()) + 3600)
-        verified_payload = verify_jws(valid_token)
+        _, verified_payload = verify_jws(valid_token)
 
         assert 'exp' in verified_payload, "JWT with expiration must contain 'exp' claim"
 
@@ -265,7 +265,7 @@ class TestRFCJWTJWSCompliance:
         token = create_jws(agent, payload)
 
         # Valid signature should verify
-        verified_payload = verify_jws(token)
+        _, verified_payload = verify_jws(token)
         assert verified_payload['test'] == 'data', "Valid signature must verify successfully"
 
         # Tampered signature should fail
@@ -388,7 +388,7 @@ class TestPhase5Summary:
 
         # 2. RFC JWT/JWS compliance
         token = create_jws(agent, payload, expires_in=3600)
-        verified = verify_jws(token)
+        _, verified = verify_jws(token)
         assert verified['test'] == 'compliance', "JWS verification works"
         assert 'iat' in verified, "JWT includes iat claim"
 
