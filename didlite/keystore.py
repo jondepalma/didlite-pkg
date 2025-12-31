@@ -14,6 +14,8 @@
 
 """Key storage backends for persistent identity management"""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import os
 import json
@@ -200,18 +202,6 @@ class FileKeyStore(KeyStore):
         # Create storage directory if it doesn't exist
         os.makedirs(storage_dir, mode=0o700, exist_ok=True)
 
-        # SECURITY: Pre-import cryptography modules to avoid PyO3 re-initialization issues
-        # Reference: Python 3.10 CI fix for importlib mode compatibility
-        # Import once during __init__ instead of lazy-loading in methods
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-        from cryptography.fernet import Fernet
-
-        # Store references for use in methods
-        self._hashes = hashes
-        self._PBKDF2HMAC = PBKDF2HMAC
-        self._Fernet = Fernet
-
     def _get_file_path(self, identifier: str) -> str:
         """Get the file path for a given identifier"""
         # SECURITY: Use basename to prevent any path traversal
@@ -223,9 +213,13 @@ class FileKeyStore(KeyStore):
 
     def _derive_key(self, salt: bytes) -> bytes:
         """Derive encryption key from password using PBKDF2"""
-        # Use pre-imported references from __init__
-        kdf = self._PBKDF2HMAC(
-            algorithm=self._hashes.SHA256(),
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.hazmat.primitives import hashes
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+        kdf = PBKDF2HMAC(
+            algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
             iterations=self.iterations,
@@ -233,6 +227,10 @@ class FileKeyStore(KeyStore):
         return base64.urlsafe_b64encode(kdf.derive(self.password))
 
     def save_seed(self, identifier: str, seed: bytes) -> None:
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.fernet import Fernet
+
         if len(seed) != 32:
             raise ValueError(f"Seed must be exactly 32 bytes, got {len(seed)}")
 
@@ -241,7 +239,7 @@ class FileKeyStore(KeyStore):
 
         # Derive encryption key
         key = self._derive_key(salt)
-        fernet = self._Fernet(key)
+        fernet = Fernet(key)
 
         # Encrypt seed
         encrypted_seed = fernet.encrypt(seed)
@@ -269,6 +267,10 @@ class FileKeyStore(KeyStore):
             raise
 
     def load_seed(self, identifier: str) -> Optional[bytes]:
+        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
+        # Reference: PHASE_5 VULN-3, Issue #35
+        from cryptography.fernet import Fernet
+
         file_path = self._get_file_path(identifier)
 
         if not os.path.exists(file_path):
@@ -284,7 +286,7 @@ class FileKeyStore(KeyStore):
 
             # Derive decryption key
             key = self._derive_key(salt)
-            fernet = self._Fernet(key)
+            fernet = Fernet(key)
 
             # Decrypt seed
             seed = fernet.decrypt(encrypted_seed)
