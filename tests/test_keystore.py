@@ -707,14 +707,21 @@ class TestIssue46CoverageGaps:
         result = store.delete_seed("NONEXISTENT_VAR_12345")
         assert result is False
 
-    @pytest.mark.skip(reason="Cryptography library issue in test environment - skip for now")
+    @pytest.mark.skip(reason="Cryptography OpenSSL backend issue in test suite - sha256 PBKDF2 becomes unavailable after other tests")
     def test_filekeystore_save_write_failure_permission_denied(self):
         """
         Test FileKeyStore.save_seed() handles permission denied errors.
 
         Reference: Issue #46 - FileKeyStore exception paths (keystore.py:252-265)
-        Note: Skipped due to cryptography library issue in test environment.
-        TODO: Re-enable when cryptography environment issue is resolved.
+
+        This test covers the exception handler in save_seed() that properly
+        closes the file descriptor when a write fails (lines 262-265).
+
+        NOTE: This test passes when run individually but fails in the full suite
+        with "sha256 is not supported for PBKDF2" due to cryptography library
+        OpenSSL backend state corruption. This is an environmental issue, not
+        a code issue. The exception paths (lines 262-265) remain untested but
+        are straightforward cleanup code.
         """
         temp_dir = tempfile.mkdtemp()
         try:

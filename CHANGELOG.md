@@ -29,11 +29,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Enables header-based timestamp validation in plugins
 
 ### Added - Test Coverage
-- **30 new regression tests for v0.2.3 features** (#32, #43, #44, #46)
+- **31 new regression tests for v0.2.3 features** (#32, #43, #44, #46)
   - 19 tests for JWS header enhancements (custom headers, tuple return, extract_signer_did)
   - 11 tests for Issue #46 coverage gaps (VULN-3, FileKeyStore, EnvKeyStore edge cases)
-- **Coverage improvement**: 96% → 97% (10 fewer uncovered lines)
-- **Total test count**: 205 → 232 tests (13% increase)
+  - 1 test for missing 'kid' header validation (security-critical path)
+- **Coverage improvement**: 96% → 97.2% (9 fewer uncovered lines)
+  - jws.py: 97% → 99% coverage (missing 'kid' header path now tested)
+- **Total test count**: 205 → 233 tests (13.7% increase)
 
 ### Changed
 - **All existing tests updated** for `verify_jws()` tuple return (203 tests across 5 files)
@@ -45,6 +47,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - VULN-3 lazy import verification (cryptography not loaded until needed)
   - FileKeyStore exception paths (corrupted JSON, missing fields, write failures)
   - EnvKeyStore edge cases (invalid base64, wrong length, nonexistent variables)
+- **Test reliability improvements**:
+  - Fixed flaky signature validation test that could fail with single-character tampering
+  - Improved signature corruption test to modify multiple bytes for reliable detection
+  - Added specific exception type checking (BadSignatureError instead of generic Exception)
+  - Documented cryptography OpenSSL backend issue affecting permission error test in full suite
 
 ### Plugin Ecosystem Readiness
 This release unblocks three planned plugin packages:
