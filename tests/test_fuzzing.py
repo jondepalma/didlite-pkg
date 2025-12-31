@@ -38,7 +38,8 @@ FUZZ_EXAMPLES = 500 if FULL_FUZZ_MODE else 10  # Minimal examples on Pi (10), fu
 # Disable shrinking on Pi to reduce resource usage
 # Shrinking helps minimize failing examples but is CPU-intensive
 # CI/CD environments should use full fuzzing with shrinking enabled
-FUZZ_PHASES = None if FULL_FUZZ_MODE else [HypothesisPhase.explicit, HypothesisPhase.reuse, HypothesisPhase.generate]
+# When FULL_FUZZ_MODE=True, use all phases (including shrink); otherwise skip shrink phase
+FUZZ_PHASES = [HypothesisPhase.explicit, HypothesisPhase.reuse, HypothesisPhase.generate, HypothesisPhase.shrink] if FULL_FUZZ_MODE else [HypothesisPhase.explicit, HypothesisPhase.reuse, HypothesisPhase.generate]
 import multibase
 import base64
 import json

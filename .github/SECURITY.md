@@ -117,6 +117,84 @@ For sensitive reports, you may encrypt your email using PGP:
 
 ---
 
+## Supply Chain Security
+
+### SLSA Compliance Status
+
+**didlite** follows the [SLSA Framework](https://slsa.dev/) (Supply-chain Levels for Software Artifacts) to ensure build integrity and provenance.
+
+**Current Status: SLSA Level 2** ✅
+
+| SLSA Level | Status | Details |
+|------------|--------|---------|
+| **Level 1: Build** | ✅ Complete | Scripted build process via GitHub Actions |
+| **Level 2: Source** | ✅ Complete | Version-controlled source, authenticated provenance via OIDC |
+| **Level 3: Hardened Builds** | 📋 Planned for v1.0.0 | Cryptographic build attestations, dependency pinning, hermetic builds |
+| **Level 4: Two-Party Review** | 🔮 Future | Requires multiple maintainers (post-v1.0.0) |
+
+**SLSA Level 2 Compliance Details:**
+
+✅ **Version Control** - All source code in Git with full commit history
+✅ **Scripted Build** - Automated builds via GitHub Actions (`.github/workflows/publish.yml`)
+✅ **Build Service** - GitHub Actions generates build provenance
+✅ **Authenticated Provenance** - OIDC Trusted Publisher eliminates API tokens
+✅ **Service-Generated Provenance** - GitHub automatically generates attestations
+
+**SLSA Level 3 Roadmap (v1.0.0):**
+
+The following enhancements are planned for the v1.0.0 stable release:
+
+🔲 **Non-Falsifiable Provenance** - Sign build attestations with GitHub's Sigstore integration
+🔲 **Dependency Pinning** - Generate `requirements.txt` with cryptographic checksums
+🔲 **Hermetic Builds** - Containerized builds with reproducible environments
+🔲 **SLSA Provenance Generation** - Use `slsa-framework/slsa-github-generator` official action
+🔲 **Provenance Verification** - Document how consumers can verify builds with `slsa-verifier`
+
+**Why SLSA Level 2 is Sufficient for Beta:**
+
+For pre-v1.0.0 releases, SLSA Level 2 provides strong supply chain security:
+- Prevents compromised PyPI credentials (OIDC replaces API tokens)
+- GitHub Actions provides auditable build logs
+- Source code provenance is cryptographically verifiable
+- All builds are reproducible from tagged commits
+
+**SLSA Level 3 is reserved for production-critical packages** and will be implemented alongside our external security audit for v1.0.0.
+
+### Dependency Vulnerability Scanning
+
+**Automated Scanning:**
+
+Our CI/CD pipeline includes automated dependency vulnerability scanning on every PR/push:
+
+```yaml
+# .github/workflows/test.yml (security-scan job)
+- name: Run pip-audit (dependency vulnerability scan)
+  run: pip-audit --desc
+```
+
+**Tools Used:**
+- **pip-audit** (Official PyPA tool) - Scans against OSV (Open Source Vulnerabilities) database
+- **Future:** Additional scanning tools under evaluation for v1.0.0
+
+**Manual Auditing:**
+
+```bash
+# Check for known vulnerabilities in dependencies
+pip install pip-audit
+pip-audit --desc
+
+# Review dependency tree
+pip install pipdeptree
+pipdeptree
+```
+
+**Dependency Update Policy:**
+- Critical vulnerabilities: Patched within 48 hours
+- High severity: Patched within 7 days
+- Medium/Low severity: Addressed in next regular release
+
+---
+
 ## Security Best Practices
 
 ### For Library Users
@@ -210,5 +288,5 @@ We recognize security researchers who responsibly disclose vulnerabilities:
 
 ---
 
-**Last Updated:** 2024-12-24
-**Version:** 1.0
+**Last Updated:** 2025-12-31
+**Version:** 1.1

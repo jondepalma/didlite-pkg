@@ -14,15 +14,43 @@
 
 """Key storage backends for persistent identity management"""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 import os
 import json
 import base64
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 # SECURITY: Lazy import for cryptography dependency (lite philosophy)
 # Reference: PHASE_5 VULN-3, Issue #35
 # Only imported when FileKeyStore is used, not required for Memory/Env stores
+#
+# PyO3 Compatibility: Import at module level (not in functions) to avoid
+# reinitialization errors with pytest --import-mode=importlib
+if TYPE_CHECKING:
+    from cryptography.fernet import Fernet
+    from cryptography.hazmat.primitives import hashes
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+# Lazy singleton pattern - import once on first FileKeyStore use
+_crypto_imported = False
+_Fernet = None
+_hashes = None
+_PBKDF2HMAC = None
+
+def _ensure_crypto_imported():
+    """Import cryptography modules once on first use"""
+    global _crypto_imported, _Fernet, _hashes, _PBKDF2HMAC
+    if not _crypto_imported:
+        from cryptography.fernet import Fernet as FernetClass
+        from cryptography.hazmat.primitives import hashes as hashes_module
+        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC as PBKDF2HMACClass
+
+        _Fernet = FernetClass
+        _hashes = hashes_module
+        _PBKDF2HMAC = PBKDF2HMACClass
+        _crypto_imported = True
 
 
 class KeyStore(ABC):
@@ -211,13 +239,10 @@ class FileKeyStore(KeyStore):
 
     def _derive_key(self, salt: bytes) -> bytes:
         """Derive encryption key from password using PBKDF2"""
-        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
-        # Reference: PHASE_5 VULN-3, Issue #35
-        from cryptography.hazmat.primitives import hashes
-        from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+        _ensure_crypto_imported()
 
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
+        kdf = _PBKDF2HMAC(
+            algorithm=_hashes.SHA256(),
             length=32,
             salt=salt,
             iterations=self.iterations,
@@ -225,9 +250,7 @@ class FileKeyStore(KeyStore):
         return base64.urlsafe_b64encode(kdf.derive(self.password))
 
     def save_seed(self, identifier: str, seed: bytes) -> None:
-        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
-        # Reference: PHASE_5 VULN-3, Issue #35
-        from cryptography.fernet import Fernet
+        _ensure_crypto_imported()
 
         if len(seed) != 32:
             raise ValueError(f"Seed must be exactly 32 bytes, got {len(seed)}")
@@ -237,7 +260,7 @@ class FileKeyStore(KeyStore):
 
         # Derive encryption key
         key = self._derive_key(salt)
-        fernet = Fernet(key)
+        fernet = _Fernet(key)
 
         # Encrypt seed
         encrypted_seed = fernet.encrypt(seed)
@@ -265,9 +288,7 @@ class FileKeyStore(KeyStore):
             raise
 
     def load_seed(self, identifier: str) -> Optional[bytes]:
-        # SECURITY: Lazy import cryptography (only when FileKeyStore methods are used)
-        # Reference: PHASE_5 VULN-3, Issue #35
-        from cryptography.fernet import Fernet
+        _ensure_crypto_imported()
 
         file_path = self._get_file_path(identifier)
 
@@ -284,7 +305,7 @@ class FileKeyStore(KeyStore):
 
             # Derive decryption key
             key = self._derive_key(salt)
-            fernet = Fernet(key)
+            fernet = _Fernet(key)
 
             # Decrypt seed
             seed = fernet.decrypt(encrypted_seed)
