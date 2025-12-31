@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "didlite"
-version = "0.2.3"
+version = "0.2.4"
 description = "Zero-dependency-bloat Python library for W3C Decentralized Identifiers (DIDs) using Ed25519 keys"
 readme = "README.md"
 requires-python = ">=3.9"

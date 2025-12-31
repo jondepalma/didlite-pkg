@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.4] - 2025-12-31
 
+## [0.2.4] - 2025-12-31
+
 ### ⚠️ BREAKING CHANGES
 - **Python 3.8 support dropped** - Minimum version now Python 3.9+ (#50)
   - **Rationale**: Python 3.8 reached EOL in October 2024 (no security patches)
