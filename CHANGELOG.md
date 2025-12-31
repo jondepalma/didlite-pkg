@@ -5,6 +5,76 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [0.2.4] - 2025-12-31
+
+### ⚠️ BREAKING CHANGES
+- **Python 3.8 support dropped** - Minimum version now Python 3.9+ (#50)
+  - **Rationale**: Python 3.8 reached EOL in October 2024 (no security patches)
+  - **Technical blocker**: Type hint incompatibility (`tuple[dict, dict]` requires PEP 585)
+  - **Migration**: Upgrade to Python 3.9 or newer
+  - **Target platforms**: Raspberry Pi OS Bullseye (3.9), Bookworm (3.11), AWS Graviton (3.9+)
+
+### Added
+- **CI/CD pipeline with GitHub Actions** (#50)
+  - Multi-version testing (Python 3.9, 3.10, 3.11, 3.12) on every PR/push
+  - Fuzzing tests with hypothesis (30-minute timeout in CI)
+  - Security scanning with pip-audit (OSV database)
+  - Codecov integration for coverage reporting
+- **OIDC-authenticated PyPI publishing** - Secure publishing without API tokens (#50)
+  - Trusted Publisher configuration via GitHub OIDC
+  - Automated build and verification with twine
+  - Triggers on GitHub release publication
+- **Modern Python packaging (PEP 517/518)** (#50)
+  - Complete pyproject.toml configuration with metadata
+  - Centralized pytest and coverage configuration
+  - setup.py converted to minimal shim for backwards compatibility
+- **Release automation script** (`scripts/release.sh`) (#50)
+  - Automated version bumping in pyproject.toml and `__init__.py`
+  - CHANGELOG.md date stamping
+  - Git tagging and GitHub release creation
+  - Branch enforcement (must run on main)
+- **Community contribution guidelines** (#50)
+  - CONTRIBUTING.md with security hardening documentation
+  - CODE_OF_CONDUCT.md (Contributor Covenant v2.0)
+  - Reference to 23+ security fixes with GitHub issue links
+- **Supply chain security documentation** (#50)
+  - SLSA Level 2 compliance status documented in SECURITY.md
+  - SLSA Level 3 roadmap for v1.0.0 (provenance, hermetic builds, dependency pinning)
+  - Dependency vulnerability scanning policy (48-hour SLA for critical issues)
+
+### Changed
+- **PyO3 compatibility fixes** - Resolved reinitialization errors across all Python versions (#50)
+  - Implemented module-level lazy singleton pattern for cryptography imports
+  - Affects: `didlite/keystore.py` and `didlite/core.py`
+  - Preserves lazy loading philosophy (no imports unless FileKeyStore/PEM methods used)
+  - **Root cause**: PyNaCl's cryptography dependency uses PyO3 (Rust bindings), which can only initialize once per process
+- **Removed deprecated backend parameter** from `load_pem_private_key()` (#50)
+  - Deprecated in cryptography v36.0.0 (November 2021)
+  - Backend now auto-selected by cryptography library
+  - Zero functionality changes
+- **Test coverage infrastructure** - Statement count increased due to lazy singleton helpers (#50)
+  - v0.2.3: 321 statements, 312 covered (97.2%)
+  - v0.2.4: 351 statements, 336 covered (95.7%)
+  - **Net change**: +30 statements (+24 covered, +6 missing)
+  - All security-critical code remains 100% covered
+  - New infrastructure code: TYPE_CHECKING guards, singleton logic
+
+### Fixed
+- **Python 3.9-3.12 compatibility** - All tests pass on supported versions (#50)
+  - Added `from __future__ import annotations` for PEP 585 compatibility
+  - Fixed pytest import mode conflicts with PyO3 bindings
+  - Removed license classifier conflict (setuptools >=77.0.0 compliance)
+
+### Documentation
+- **Updated test coverage metrics** for v0.2.4 in README.md and docs/TESTING_GUIDE.md (#50)
+  - Documented acceptable coverage gaps (TYPE_CHECKING guards, abstract methods, defensive assertions)
+  - Explained infrastructure code coverage trade-offs
+
+### Removed
+- **Python 3.8 support** - No longer tested or supported (#50)
+
 ## [0.2.3] - 2025-12-30
 
 ### ⚠️ BREAKING CHANGES
