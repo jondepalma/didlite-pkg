@@ -17,18 +17,31 @@ echo "📦 Preparing release v${VERSION}"
 echo "Description: ${DESCRIPTION}"
 echo ""
 
+# 0. Verify we're on main branch
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "main" ]; then
+    echo "❌ ERROR: Must be on 'main' branch to create a release"
+    echo "   Current branch: $CURRENT_BRANCH"
+    echo "   Run: git checkout main && git pull origin main"
+    exit 1
+fi
+
 # 1. Update version in pyproject.toml
 echo "1️⃣ Updating version in pyproject.toml..."
 sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
 
-# 2. Update CHANGELOG.md
-echo "2️⃣ Updating CHANGELOG.md..."
+# 2. Update version in didlite/__init__.py
+echo "2️⃣ Updating version in didlite/__init__.py..."
+sed -i "s/^__version__ = .*/__version__ = \"${VERSION}\"/" didlite/__init__.py
+
+# 3. Update CHANGELOG.md
+echo "3️⃣ Updating CHANGELOG.md..."
 DATE=$(date +%Y-%m-%d)
 sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [${VERSION}] - ${DATE}/" CHANGELOG.md
 
-# 3. Commit changes
-echo "3️⃣ Committing version bump..."
-git add pyproject.toml CHANGELOG.md
+# 4. Commit changes
+echo "4️⃣ Committing version bump..."
+git add pyproject.toml didlite/__init__.py CHANGELOG.md
 git commit -m "chore: Bump version to ${VERSION}
 
 ${DESCRIPTION}
@@ -37,17 +50,17 @@ ${DESCRIPTION}
 
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
-# 4. Create git tag
-echo "4️⃣ Creating git tag v${VERSION}..."
+# 5. Create git tag
+echo "5️⃣ Creating git tag v${VERSION}..."
 git tag -a "v${VERSION}" -m "${DESCRIPTION}"
 
-# 5. Push to origin
-echo "5️⃣ Pushing to origin..."
-git push origin dev
+# 6. Push to origin
+echo "6️⃣ Pushing to origin/main..."
+git push origin main
 git push origin --tags
 
-# 6. Create GitHub release (triggers publish workflow)
-echo "6️⃣ Creating GitHub release..."
+# 7. Create GitHub release (triggers publish workflow)
+echo "7️⃣ Creating GitHub release..."
 gh release create "v${VERSION}" \
     --title "v${VERSION}" \
     --notes "${DESCRIPTION}
