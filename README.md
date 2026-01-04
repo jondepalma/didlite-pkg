@@ -218,6 +218,35 @@ If you just want to check a DID string and get the raw public key bytes:
 
 ---
 
+## 🤝 Getting Help
+
+### Community Support (Free)
+
+- **📖 Documentation**: [Getting Started Guide](docs/) and [API Reference](docs/)
+- **💬 GitHub Discussions**: Questions, use cases, and best practices
+- **🐛 GitHub Issues**: Bug reports and feature requests
+- **🔐 Security**: Report vulnerabilities to [security@didlite.io](mailto:security@didlite.io)
+
+didlite is Apache 2.0 licensed - use it however you want. All features are freely available.
+
+### Production Consulting (Optional)
+
+Need help with production deployment, custom integration, or enterprise support?
+
+- **[Forjic Technology](https://forjic.io)** - Founded by didlite creator Jon DePalma
+  - Deep didlite expertise and production hardening
+  - Contact: [consulting@forjic.io](mailto:consulting@forjic.io)
+
+- **Other Options**: Hire any qualified consultant or use our free production guides
+
+didlite is independent and community-driven. Forjic is one option for commercial support.
+
+---
+
+**About**: didlite is created and maintained by [Jon DePalma](https://jondepalma.com). See [SECURITY.md](.github/SECURITY.md) for security policy.
+
+---
+
 ## 🧪 Testing & Quality
 
 ### Test Coverage (v0.2.4)

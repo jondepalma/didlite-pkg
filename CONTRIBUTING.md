@@ -165,7 +165,7 @@ By contributing, you agree that your contributions will be licensed under the Ap
 ## Questions?
 
 - **General questions:** Open a GitHub Discussion
-- **Security concerns:** Email security@jondepalma.com (PGP key in `.github/security/`)
+- **Security concerns:** Email security@didlite.io (PGP key in `.github/security/`)
 - **Feature proposals:** Open an issue with `[RFC]` prefix
 
 Thank you for contributing to didlite! 🎉

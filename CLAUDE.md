@@ -8,6 +8,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key Design Principle:** "Lite" by design - only supports `did:key` method to ensure maximum portability for Edge AI and IoT deployments, especially ARM64 devices (Raspberry Pi, AWS Graviton, M1/M2/M3 Macs).
 
+## Development Methodology
+
+This project follows the Claude Code development methodology for consistent, traceable, test-driven development.
+
+**Core methodology:** `~/.config/claude-code/methodologies/claude-code-methodology.md`
+
+**Key practices enforced:**
+- GitHub issue created BEFORE all non-trivial work (bug fixes, enhancements, features)
+- Regression tests added after EVERY fix
+- Test coverage maintained/improved with every change
+- Issue progress tracked via comments
+- PRs include test results and coverage reports
+
+**Project-specific patterns:**
+- Two-remote setup (GitHub primary, Gitea backup)
+- `git push-all` alias for dual-remote pushes
+- Phase-based security regression test organization
+- Comprehensive attack vector testing for cryptographic operations
+
+**Quick reference:** See `docs/dev-design/QUICK-REFERENCE.md` for workflow cheat sheet
+
 ## Core Architecture
 
 The library has a minimal two-module architecture:
