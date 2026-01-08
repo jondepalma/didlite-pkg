@@ -27,9 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[test]"
 
-      - name: Run tests with coverage
+      - name: Run tests with coverage (excluding OWASP compliance)
         run: |
-          pytest --cov=didlite --cov-report=xml --cov-report=term-missing -v
+          pytest --cov=didlite --cov-report=xml --cov-report=term-missing -v --ignore=tests/test_owasp_compliance.py
 
       - name: Upload coverage to Codecov
         if: matrix.python-version == '3.12'
@@ -58,6 +58,31 @@ jobs:
         run: |
           DIDLITE_FULL_FUZZ=1 pytest tests/test_fuzzing.py -v
         timeout-minutes: 30
+
+  owasp-compliance:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11", "3.12"]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test]"
+
+      - name: Run OWASP compliance tests (isolated)
+        run: |
+          pytest tests/test_owasp_compliance.py -v
+        timeout-minutes: 5
 
   security-scan:
     runs-on: ubuntu-latest

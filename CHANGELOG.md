@@ -11,9 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **PyO3 reinitialization error in OWASP compliance tests**
   - Fixed tests/test_owasp_compliance.py to use module-scoped fixtures
   - Prevents multiple FileKeyStore instantiations causing cryptography reimports
-  - Error only occurred in Python 3.10 CI environment
-  - **Root cause**: setup_method() created new FileKeyStore per test method
-  - **Solution**: Share single FileKeyStore instance across all tests using pytest fixtures
+  - Error occurred in Python 3.9/3.10 CI environments
+  - **Root cause**: Multiple test modules creating FileKeyStore instances exhausted PyO3 initialization
+  - **Interim solution**: Separated OWASP tests into isolated CI job (prevents cross-module conflicts)
+  - **Long-term fix**: v0.3.0 will refactor all FileKeyStore tests to use module-scoped fixtures
   - Reference: Issue #50 - CI/CD Pipeline Fixes: PyO3 Compatibility
 - **Documentation accuracy for PBKDF2 iteration count** (#55)
   - Corrected docs/CRYPTO_RATIONALE.md to reflect actual implementation (480,000 iterations)
@@ -35,6 +36,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests verify iteration count, salt randomness/length, HMAC algorithm
   - Validates documentation claims in CRYPTO_RATIONALE.md and THREAT_MODEL.md
   - Total test count: 245 → 257 tests (4.9% increase)
+
+### Changed
+- **CI/CD workflow restructured to prevent PyO3 conflicts**
+  - Split test suite into separate GitHub Actions jobs
+  - Main `test` job: Runs all tests except OWASP compliance (`--ignore=tests/test_owasp_compliance.py`)
+  - New `owasp-compliance` job: Runs OWASP tests in isolated environment
+  - **Rationale**: PyO3 modules can only initialize once per interpreter process
+  - Prevents test_keystore.py (20+ FileKeyStore instances) from exhausting PyO3 before OWASP tests run
+  - **Temporary solution** pending v0.3.0 comprehensive test refactoring
+  - Both jobs run on Python 3.9-3.12 matrix
 
 ### Documentation
 - **Added .github/SECURITY.md password requirements section** (#55)

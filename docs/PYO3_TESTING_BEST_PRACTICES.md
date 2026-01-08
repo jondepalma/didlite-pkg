@@ -229,7 +229,20 @@ The error often manifests in Python 3.10 due to subtle differences in how pytest
 
 ### GitHub Actions
 
-Our `.github/workflows/test.yml` runs tests across Python 3.9-3.12. The PyO3 error will appear in the Python 3.10 job if fixtures are not properly scoped.
+Our `.github/workflows/test.yml` runs tests across Python 3.9-3.12 using a **separated workflow structure** to prevent PyO3 conflicts:
+
+**Workflow Structure (v0.2.5+):**
+1. **Main `test` job**: Runs all tests EXCEPT OWASP compliance tests
+   - Command: `pytest --ignore=tests/test_owasp_compliance.py`
+   - Prevents PyO3 exhaustion from test_keystore.py (20+ FileKeyStore instances)
+
+2. **Isolated `owasp-compliance` job**: Runs ONLY OWASP compliance tests
+   - Command: `pytest tests/test_owasp_compliance.py -v`
+   - Fresh interpreter prevents cross-module PyO3 conflicts
+
+**Rationale**: While module-scoped fixtures prevent PyO3 errors within a single test module, multiple test modules creating FileKeyStore instances (e.g., test_keystore.py runs before test_owasp_compliance.py alphabetically) can exhaust PyO3 initialization before later tests run.
+
+**Future Plan**: v0.3.0 will refactor ALL FileKeyStore tests to use module-scoped fixtures, allowing consolidated workflow.
 
 **Pytest Configuration** (in `pyproject.toml`):
 ```toml
