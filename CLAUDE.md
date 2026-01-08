@@ -22,8 +22,7 @@ This project follows the Claude Code development methodology for consistent, tra
 - PRs include test results and coverage reports
 
 **Project-specific patterns:**
-- Two-remote setup (GitHub primary, Gitea backup)
-- `git push-all` alias for dual-remote pushes
+- GitHub as primary remote (origin)
 - Phase-based security regression test organization
 - Comprehensive attack vector testing for cryptographic operations
 
@@ -225,14 +224,9 @@ Resolves #<issue_number>
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ```
 
-3. **Push to origin/dev** (and backup to Gitea):
+3. **Push to origin/dev**:
 ```bash
-# Push to both GitHub and Gitea backup
-git push-all dev
-
-# Or push individually:
-git push origin dev           # GitHub (primary)
-git push gitea-backup dev     # Gitea (backup)
+git push origin dev
 ```
 
 4. **Create pull request**:
@@ -275,14 +269,6 @@ gh pr merge <pr_number>
 
 **Remote Strategy**:
 - `origin`: GitHub (primary - used for CI/CD, issues, PRs)
-- `gitea-backup`: Gitea (backup - manual sync via `git push-all`)
-
-**Push Alias**:
-```bash
-# Push to both remotes at once
-git push-all main
-git push-all dev
-```
 
 **Commit Message Format**:
 ```
