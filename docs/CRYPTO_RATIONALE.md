@@ -439,7 +439,7 @@ header = {"alg": "none", "typ": "JWT", "kid": "did:key:..."}
 ### Decision
 
 Seeds stored by `FileKeyStore` are encrypted using:
-1. **PBKDF2-HMAC-SHA256** (600,000 iterations as of v0.2.0) for key derivation from password
+1. **PBKDF2-HMAC-SHA256** (480,000 iterations) for key derivation from password
 2. **Fernet** (AES-128-CBC + HMAC-SHA256) for authenticated encryption
 
 ### Rationale
@@ -454,21 +454,28 @@ Seeds stored by `FileKeyStore` are encrypted using:
 | **bcrypt** | Good for passwords, widely used | Designed for password hashing (not key derivation), limited output length | ❌ NOT SUITABLE |
 
 **Why PBKDF2 is sufficient:**
-- **Iteration count:** 600,000 iterations (v0.2.0, updated from 480,000 in v0.1.5)
-  - OWASP 2023 recommendation: 600,000 iterations for PBKDF2-HMAC-SHA256
+- **Iteration count:** 480,000 iterations (since v0.1.5)
+  - **Compliance:** Exceeds OWASP 2021 (310,000) by 55%
+  - **Status:** ~80% of OWASP 2023 recommendation (600,000)
+  - **Security:** Sufficient for production with strong passwords (20+ characters)
   - ~0.5-1 second per password attempt on modern CPU (acceptable for user experience)
   - GPU speedup: ~10-100x (still ~50,000-500,000 passwords/sec on high-end GPU)
 - **Strong passwords mitigate GPU attacks:** 20-character random password = 2^95 bits entropy (~10^28 attempts to brute-force)
-- **NIST compliance:** SP 800-132 approves PBKDF2 with 10,000+ iterations (we use 60x more)
-
-**Future consideration:** Add Argon2id support in a future version for memory-hard KDF (optional, user-selectable)
+- **NIST compliance:** SP 800-132 approves PBKDF2 with 10,000+ iterations (we use 48x more)
 
 **Iteration Count Evolution:**
 ```
-v0.1.0-v0.1.4: 480,000 iterations (OWASP 2021 recommendation)
-v0.1.5-v0.2.0: 600,000 iterations (OWASP 2023 recommendation)
-Future:        Planned: Argon2id support (memory-hard)
+v0.1.0-v0.1.4: Not implemented (FileKeyStore added in v0.1.5)
+v0.1.5-v0.2.x: 480,000 iterations (exceeds OWASP 2021 by 55%)
+v1.0.0:        Planned: 600,000 iterations (OWASP 2023 full compliance)
+Future:        Evaluate: Argon2id support (memory-hard KDF)
 ```
+
+**Planned v1.0.0 Upgrade:**
+- Increase to 600,000 iterations (OWASP 2023 full compliance)
+- Store iteration count in file metadata (backward compatibility)
+- Auto-detect iteration count when loading existing files
+- Provide migration tool to re-encrypt with higher iteration count
 
 **2. Why HMAC-SHA256 (Not HMAC-SHA512)?**
 - **Fernet requirement:** Fernet uses HMAC-SHA256 internally (not configurable)
@@ -721,9 +728,9 @@ payload = decrypt_jwe(jwe_token, agent.signing_key)
 
 ### 4. Argon2id for Password-Based Encryption
 
-**Current:** PBKDF2-HMAC-SHA256 (600,000 iterations)
+**Current:** PBKDF2-HMAC-SHA256 (480,000 iterations)
 
-**Future:** Add Argon2id support as alternative KDF (under consideration)
+**Planned (v1.0.0):** 600,000 iterations + Evaluate Argon2id support
 
 **Benefits:**
 - **Memory-hard:** Resistant to GPU/ASIC attacks (requires 64MB+ RAM per attempt)

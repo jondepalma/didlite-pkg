@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- **Documentation accuracy for PBKDF2 iteration count** (#55)
+  - Corrected docs/CRYPTO_RATIONALE.md to reflect actual implementation (480,000 iterations)
+  - Corrected docs/THREAT_MODEL.md to reflect actual implementation (480,000 iterations)
+  - Documentation previously claimed 600,000 iterations (aspirational, never implemented)
+  - Actual implementation uses 480,000 iterations since v0.1.5
+  - **Compliance**: Exceeds OWASP 2021 (310,000) by 55%, ~80% of OWASP 2023 (600,000)
+  - **Security**: Sufficient for production with strong passwords (20+ characters)
+  - No code changes - documentation-only fix
+- **Release script CHANGELOG duplication bug** (#52)
+  - scripts/release.sh now checks if version header exists before inserting
+  - Re-running release script no longer duplicates version headers
+  - If version exists, only the date is updated
+
+### Added
+- **OWASP Password Storage Compliance Test Suite** (#55)
+  - New tests/test_owasp_compliance.py with 12 comprehensive tests
+  - Validates PBKDF2-HMAC-SHA256 implementation against OWASP recommendations
+  - Tests verify iteration count, salt randomness/length, HMAC algorithm
+  - Validates documentation claims in CRYPTO_RATIONALE.md and THREAT_MODEL.md
+  - Total test count: 245 → 257 tests (4.9% increase)
+
+### Documentation
+- **Added .github/SECURITY.md password requirements section** (#55)
+  - Documents 480,000 iteration count and OWASP compliance status
+  - Provides strong password guidance (20+ characters mandatory)
+  - Includes GPU crack time analysis for different password strengths
+  - Documents v1.0.0 upgrade plan (600,000 iterations with backward compatibility)
+
 ## [0.2.4] - 2025-12-31
 
 ### ⚠️ BREAKING CHANGES

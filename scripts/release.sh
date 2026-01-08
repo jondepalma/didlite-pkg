@@ -37,7 +37,14 @@ sed -i "s/^__version__ = .*/__version__ = \"${VERSION}\"/" didlite/__init__.py
 # 3. Update CHANGELOG.md
 echo "3️⃣ Updating CHANGELOG.md..."
 DATE=$(date +%Y-%m-%d)
-sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [${VERSION}] - ${DATE}/" CHANGELOG.md
+
+# Only insert if version doesn't already exist
+if ! grep -q "## \[${VERSION}\]" CHANGELOG.md; then
+    sed -i "s/## \[Unreleased\]/## [Unreleased]\n\n## [${VERSION}] - ${DATE}/" CHANGELOG.md
+else
+    # Version already exists, just update the date
+    sed -i "s/## \[${VERSION}\] - .*/## [${VERSION}] - ${DATE}/" CHANGELOG.md
+fi
 
 # 4. Commit changes
 echo "4️⃣ Committing version bump..."

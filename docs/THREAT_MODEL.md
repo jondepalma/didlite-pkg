@@ -65,7 +65,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 
 **Impact of Compromise:**
 - **Offline Brute-Force:** Attacker with file access can attempt password cracking
-  - Mitigated by PBKDF2 (600,000 iterations as of v0.1.5)
+  - Mitigated by PBKDF2 (480,000 iterations - exceeds OWASP 2021)
   - Still vulnerable if weak passwords used
 - **File Deletion:** Loss of encrypted seeds = permanent identity loss (no recovery)
 
@@ -308,7 +308,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 - Symlink race conditions
 
 **Mitigations:**
-- ✅ PBKDF2 key derivation (600,000 iterations) slows brute-force
+- ✅ PBKDF2 key derivation (480,000 iterations) slows brute-force
 - ✅ Fernet authenticated encryption (HMAC protects integrity)
 - ⚠️ Weak path traversal protection (Issue #10 - MED-2)
 - ❌ No explicit file permission setting (OS umask-dependent)
@@ -514,7 +514,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 
 **Mitigations:**
 - ✅ Path traversal protection implemented (Issue #10 - resolved in v0.2.0)
-- ✅ PBKDF2 (600,000 iterations) for key derivation
+- ✅ PBKDF2 (480,000 iterations) for key derivation
 - ✅ Fernet authenticated encryption (HMAC integrity)
 - ✅ Explicit file permission setting enforced
 
@@ -584,7 +584,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 **Likelihood:** MEDIUM (requires file access + weak password)
 
 **Mitigations:**
-- ✅ PBKDF2 slows brute-force (600,000 iterations ≈ 1 second per password)
+- ✅ PBKDF2 slows brute-force (480,000 iterations ≈ 0.5-1 second per password)
 - ⚠️ User education required (strong password enforcement)
 - 🔮 Future: HSM integration eliminates file-based storage
 
@@ -801,7 +801,7 @@ This document defines the threat model for **didlite**, a lightweight Python lib
 **Assumption:** Users choose strong passwords (20+ characters, random, from password manager).
 
 **Justification:**
-- PBKDF2 (600,000 iterations) makes brute-force expensive
+- PBKDF2 (480,000 iterations) makes brute-force expensive
 - Assumes users follow security best practices
 
 **If Violated:**
@@ -953,7 +953,7 @@ The following threats are explicitly **out of scope** for didlite's threat model
 | JWS token forgery | Segment count + signature validation | ✅ DONE | Phase 1.1, HIGH-1/2 |
 | Algorithm confusion | EdDSA-only design (no negotiation) | ✅ DONE | Design |
 | Timing attacks on signatures | Constant-time PyNaCl operations | ✅ DONE | Phase 1.3 |
-| File storage brute-force | PBKDF2 (600k iterations) + Fernet | ✅ DONE | Existing |
+| File storage brute-force | PBKDF2 (480k iterations) + Fernet | ✅ DONE | Existing |
 
 ### Completed Mitigations (v0.2.0)
 
