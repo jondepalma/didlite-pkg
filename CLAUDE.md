@@ -146,6 +146,32 @@ pytest --co -q  # Count tests
 
 See [Phase 5 Regression Tests](tests/test_jws.py#L603) as an example of comprehensive regression test implementation.
 
+### PyO3 Testing Best Practices
+
+**CRITICAL**: When writing tests that use `FileKeyStore`, follow PyO3 compatibility guidelines to avoid reinitialization errors.
+
+`FileKeyStore` uses the `cryptography` library, which has PyO3 (Rust) bindings. PyO3 modules can only be initialized **once per interpreter process**.
+
+**Key Rules**:
+1. **Use module-scoped fixtures** for `FileKeyStore` instances
+2. **Never create multiple FileKeyStore instances** in the same test module using `setup_method()`
+3. **Share a single FileKeyStore** across all tests using pytest fixtures
+4. **Use unique identifiers** for each test operation to avoid conflicts
+
+**Example**:
+```python
+@pytest.fixture(scope="module")
+def shared_keystore(shared_test_dir):
+    """Module-level fixture prevents PyO3 reinitialization errors"""
+    return FileKeyStore(shared_test_dir, "test_password")
+
+class TestFileKeyStore:
+    def test_save_seed(self, shared_keystore):
+        shared_keystore.save_seed("test_unique_id", os.urandom(32))
+```
+
+**Detailed Guide**: See [docs/PYO3_TESTING_BEST_PRACTICES.md](docs/PYO3_TESTING_BEST_PRACTICES.md) for comprehensive guidelines, examples, and troubleshooting.
+
 ### Dependencies
 - `pynacl>=1.5.0` - Ed25519 signing (libsodium wrapper)
 - `py-multibase>=1.0.0` - Multibase encoding for DID formatting

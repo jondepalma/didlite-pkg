@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **PyO3 reinitialization error in OWASP compliance tests**
+  - Fixed tests/test_owasp_compliance.py to use module-scoped fixtures
+  - Prevents multiple FileKeyStore instantiations causing cryptography reimports
+  - Error only occurred in Python 3.10 CI environment
+  - **Root cause**: setup_method() created new FileKeyStore per test method
+  - **Solution**: Share single FileKeyStore instance across all tests using pytest fixtures
+  - Reference: Issue #50 - CI/CD Pipeline Fixes: PyO3 Compatibility
 - **Documentation accuracy for PBKDF2 iteration count** (#55)
   - Corrected docs/CRYPTO_RATIONALE.md to reflect actual implementation (480,000 iterations)
   - Corrected docs/THREAT_MODEL.md to reflect actual implementation (480,000 iterations)
