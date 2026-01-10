@@ -35,10 +35,10 @@ updates:
           - "minor"
           - "patch"
     # Keep major version updates separate for careful review
-    ignore:
-      # Ignore specific packages if needed
-      # - dependency-name: "example-package"
-      #   versions: ["1.x"]
+    # Uncomment and configure ignore rules if needed:
+    # ignore:
+    #   - dependency-name: "example-package"
+    #     versions: ["1.x"]
 
   # GitHub Actions dependencies
   - package-ecosystem: "github-actions"
