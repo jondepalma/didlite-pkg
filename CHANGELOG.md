@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **GitHub CODEOWNERS file** for automated review requests
+  - Defines code ownership for security-critical components
+  - Auto-assigns @jondepalma as reviewer on all PRs
+  - Special attention to core library, security tests, and release scripts
+- **Dependabot configuration** for automated dependency monitoring
+  - Weekly scans for Python dependencies (pynacl, py-multibase, test deps)
+  - Weekly scans for GitHub Actions version updates
+  - PRs target `dev` branch to maintain dev → main workflow
+  - Groups minor/patch updates, separates major updates for careful review
+  - Auto-assigns security labels for triage
+
+### Changed
+- **Moved SETUP_LOCAL.md to internal documentation** (#54)
+  - Package now available on PyPI, local setup guide no longer needed in public docs
+  - Moved to docs/dev-design/ (gitignored internal documentation)
+
+### Fixed
+- **PyO3 reinitialization error in OWASP compliance tests**
+  - Fixed tests/test_owasp_compliance.py to use module-scoped fixtures
+  - Prevents multiple FileKeyStore instantiations causing cryptography reimports
+  - Error occurred in Python 3.9/3.10 CI environments
+  - **Root cause**: Multiple test modules creating FileKeyStore instances exhausted PyO3 initialization
+  - **Interim solution**: Separated OWASP tests into isolated CI job (prevents cross-module conflicts)
+  - **Long-term fix**: v0.3.0 will refactor all FileKeyStore tests to use module-scoped fixtures
+  - Reference: Issue #50 - CI/CD Pipeline Fixes: PyO3 Compatibility
+- **Documentation accuracy for PBKDF2 iteration count** (#55)
+  - Corrected docs/CRYPTO_RATIONALE.md to reflect actual implementation (480,000 iterations)
+  - Corrected docs/THREAT_MODEL.md to reflect actual implementation (480,000 iterations)
+  - Documentation previously claimed 600,000 iterations (aspirational, never implemented)
+  - Actual implementation uses 480,000 iterations since v0.1.5
+  - **Compliance**: Exceeds OWASP 2021 (310,000) by 55%, ~80% of OWASP 2023 (600,000)
+  - **Security**: Sufficient for production with strong passwords (20+ characters)
+  - No code changes - documentation-only fix
+- **Release script CHANGELOG duplication bug** (#52)
+  - scripts/release.sh now checks if version header exists before inserting
+  - Re-running release script no longer duplicates version headers
+  - If version exists, only the date is updated
+
+### Added
+- **OWASP Password Storage Compliance Test Suite** (#55)
+  - New tests/test_owasp_compliance.py with 12 comprehensive tests
+  - Validates PBKDF2-HMAC-SHA256 implementation against OWASP recommendations
+  - Tests verify iteration count, salt randomness/length, HMAC algorithm
+  - Validates documentation claims in CRYPTO_RATIONALE.md and THREAT_MODEL.md
+  - Total test count: 245 → 257 tests (4.9% increase)
+
+### Changed
+- **CI/CD workflow restructured to prevent PyO3 conflicts**
+  - Split test suite into separate GitHub Actions jobs
+  - Main `test` job: Runs all tests except OWASP compliance (`--ignore=tests/test_owasp_compliance.py`)
+  - New `owasp-compliance` job: Runs OWASP tests in isolated environment
+  - **Rationale**: PyO3 modules can only initialize once per interpreter process
+  - Prevents test_keystore.py (20+ FileKeyStore instances) from exhausting PyO3 before OWASP tests run
+  - **Temporary solution** pending v0.3.0 comprehensive test refactoring
+  - Both jobs run on Python 3.9-3.12 matrix
+
+### Documentation
+- **Added .github/SECURITY.md password requirements section** (#55)
+  - Documents 480,000 iteration count and OWASP compliance status
+  - Provides strong password guidance (20+ characters mandatory)
+  - Includes GPU crack time analysis for different password strengths
+  - Documents v1.0.0 upgrade plan (600,000 iterations with backward compatibility)
+
 ## [0.2.4] - 2025-12-31
 
 ### ⚠️ BREAKING CHANGES

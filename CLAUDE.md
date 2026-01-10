@@ -8,6 +8,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key Design Principle:** "Lite" by design - only supports `did:key` method to ensure maximum portability for Edge AI and IoT deployments, especially ARM64 devices (Raspberry Pi, AWS Graviton, M1/M2/M3 Macs).
 
+## Development Methodology
+
+This project follows the Claude Code development methodology for consistent, traceable, test-driven development.
+
+**Core methodology:** `~/.config/claude-code/methodologies/claude-code-methodology.md`
+
+**Key practices enforced:**
+- GitHub issue created BEFORE all non-trivial work (bug fixes, enhancements, features)
+- Regression tests added after EVERY fix
+- Test coverage maintained/improved with every change
+- Issue progress tracked via comments
+- PRs include test results and coverage reports
+
+**Project-specific patterns:**
+- GitHub as primary remote (origin)
+- Phase-based security regression test organization
+- Comprehensive attack vector testing for cryptographic operations
+
+**Quick reference:** See `docs/dev-design/QUICK-REFERENCE.md` for workflow cheat sheet
+
 ## Core Architecture
 
 The library has a minimal two-module architecture:
@@ -126,6 +146,32 @@ pytest --co -q  # Count tests
 
 See [Phase 5 Regression Tests](tests/test_jws.py#L603) as an example of comprehensive regression test implementation.
 
+### PyO3 Testing Best Practices
+
+**CRITICAL**: When writing tests that use `FileKeyStore`, follow PyO3 compatibility guidelines to avoid reinitialization errors.
+
+`FileKeyStore` uses the `cryptography` library, which has PyO3 (Rust) bindings. PyO3 modules can only be initialized **once per interpreter process**.
+
+**Key Rules**:
+1. **Use module-scoped fixtures** for `FileKeyStore` instances
+2. **Never create multiple FileKeyStore instances** in the same test module using `setup_method()`
+3. **Share a single FileKeyStore** across all tests using pytest fixtures
+4. **Use unique identifiers** for each test operation to avoid conflicts
+
+**Example**:
+```python
+@pytest.fixture(scope="module")
+def shared_keystore(shared_test_dir):
+    """Module-level fixture prevents PyO3 reinitialization errors"""
+    return FileKeyStore(shared_test_dir, "test_password")
+
+class TestFileKeyStore:
+    def test_save_seed(self, shared_keystore):
+        shared_keystore.save_seed("test_unique_id", os.urandom(32))
+```
+
+**Detailed Guide**: See [docs/PYO3_TESTING_BEST_PRACTICES.md](docs/PYO3_TESTING_BEST_PRACTICES.md) for comprehensive guidelines, examples, and troubleshooting.
+
 ### Dependencies
 - `pynacl>=1.5.0` - Ed25519 signing (libsodium wrapper)
 - `py-multibase>=1.0.0` - Multibase encoding for DID formatting
@@ -204,14 +250,9 @@ Resolves #<issue_number>
 Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ```
 
-3. **Push to origin/dev** (and backup to Gitea):
+3. **Push to origin/dev**:
 ```bash
-# Push to both GitHub and Gitea backup
-git push-all dev
-
-# Or push individually:
-git push origin dev           # GitHub (primary)
-git push gitea-backup dev     # Gitea (backup)
+git push origin dev
 ```
 
 4. **Create pull request**:
@@ -254,14 +295,6 @@ gh pr merge <pr_number>
 
 **Remote Strategy**:
 - `origin`: GitHub (primary - used for CI/CD, issues, PRs)
-- `gitea-backup`: Gitea (backup - manual sync via `git push-all`)
-
-**Push Alias**:
-```bash
-# Push to both remotes at once
-git push-all main
-git push-all dev
-```
 
 **Commit Message Format**:
 ```

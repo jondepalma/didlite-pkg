@@ -35,7 +35,7 @@ didlite follows the **"SQLite for decentralized identity"** approach:
 
 ## Planned Features
 
-### v0.2.x - Hardening (Current - v0.2.3)
+### v0.2.x - Hardening (Current - v0.2.5)
 **Focus:** Production readiness and stability
 
 **Completed in v0.2.2 (2025-12-29):**
@@ -58,8 +58,10 @@ didlite follows the **"SQLite for decentralized identity"** approach:
 - [x] Test coverage improved to 97% (232 tests)
 - [x] Plugin ecosystem readiness (AP2, OAuth, SIOP)
 
-**Remaining for v0.2.x:**
-- [ ] Dependency security audit (automated scanning)
+**Completed in v0.2.5: (2025-12-30):**
+- [x] Dependency security audit (automated scanning)
+
+**Remaining**
 - [ ] External security audit (penetration testing)
 
 **Deliverable:** ✅ Production-safe library with stable API achieved
@@ -163,6 +165,9 @@ didlite aims to comply with:
 ## Community & Ecosystem
 
 **Target Integrations:**
+- Agent-to-Agent Communication
+- Agent-Payment-Protocol
+- OAuth and SIOP v2
 - LangChain (agent identity layer)
 - AutoGen (agent authentication)
 - Raspberry Pi (official examples)
@@ -178,11 +183,11 @@ didlite aims to comply with:
 ## Long-Term Vision
 
 **Success means:**
-1. Becoming the default lightweight identity for Python agents
+1. Becoming the default lightweight identity for securing AI Agents, Edge, and IoT computing.
 2. Clear migration path to enterprise SSI
 3. Active community beyond original author
 4. External security audit passed
-5. Production deployments in edge/IoT
+5. Production deployments in AI Agents and edge/IoT
 
 **We measure success by utility, not feature count.**
 

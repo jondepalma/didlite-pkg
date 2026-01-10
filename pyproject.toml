@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "Apache-2.0"}
 authors = [
-    {name = "Jon DePalma", email = "security@jondepalma.com"}
+    {name = "Jon DePalma", email = "jon@jondepalma.com"}
 ]
 keywords = ["did", "decentralized-identity", "ed25519", "jwt", "jws", "iot", "edge", "ai-agents"]
 classifiers = [

@@ -19,7 +19,7 @@ We release security updates for the following versions:
 
 ### How to Report
 
-**Email:** [security@jondepalma.net](mailto:security@jondepalma.net)
+**Email:** [security@didlite.io](mailto:security@didlite.io)
 
 **Subject Line:** `[SECURITY] didlite - Brief description`
 
@@ -81,6 +81,50 @@ For sensitive reports, you may encrypt your email using PGP:
 
 4. **No Built-In Rate Limiting** - JWS verification has no rate limiting
    - **Mitigation:** Implement rate limiting in your application layer
+
+---
+
+## FileKeyStore Password Requirements
+
+FileKeyStore uses PBKDF2-HMAC-SHA256 with **480,000 iterations** (since v0.1.5).
+
+### Iteration Count Context
+
+- ✅ **Exceeds OWASP 2021** (310,000 iterations) by **55%**
+- ⚠️ **~80% of OWASP 2023** (600,000 iterations)
+- ✅ **Production-viable** with strong passwords
+- 📋 **Planned upgrade** to 600,000 iterations in v1.0.0
+
+### Required Password Strength
+
+**Strong passwords are MANDATORY for FileKeyStore security:**
+
+- ✅ **Minimum:** 20 random characters (use a password manager)
+- ✅ **Recommended:** 24+ characters or 8+ word diceware passphrase
+- ❌ **Never use:** Dictionary words, personal info, passwords <16 characters
+
+### Why Strong Passwords Matter
+
+PBKDF2 is GPU-accelerated. On an RTX 4090, 480k iterations allows ~208 passwords/second:
+
+| Password Strength | Time to Crack |
+|-------------------|---------------|
+| Weak (8 chars, common patterns) | Minutes to hours |
+| Moderate (12 random chars, 52-bit entropy) | ~3 hours |
+| Strong (20+ random chars, 95-bit entropy) | 10^15+ years (effectively uncrackable) |
+
+**Bottom line:** With 20+ character random passwords, 480k iterations provides excellent security. Weak passwords are vulnerable regardless of iteration count.
+
+### Future Improvements (v1.0.0)
+
+- Upgrade to 600,000 iterations (OWASP 2023 full compliance)
+- Evaluate Argon2id support (memory-hard KDF, GPU-resistant)
+- Add password strength validation in FileKeyStore constructor
+- Store iteration count in file metadata (backward compatibility)
+
+**Reference:** See [Issue #55](https://github.com/jondepalma/didlite-pkg/issues/55) for detailed analysis
+
+---
 
 ### Threat Model
 
@@ -259,7 +303,7 @@ pip install --upgrade didlite
 
 ## Security Contacts
 
-**Primary Contact:** [security@jondepalma.net](mailto:security@jondepalma.net)
+**Primary Contact:** [security@didlite.io](mailto:security@didlite.io)
 **Project Maintainer:** Jon DePalma
 **GitHub Security Advisories:** [github.com/jondepalma/didlite-pkg/security/advisories](https://github.com/jondepalma/didlite-pkg/security/advisories)
 

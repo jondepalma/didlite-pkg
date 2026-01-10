@@ -36,7 +36,7 @@ Expected output: Generates a new DID and signed JWS token with verification.
 
 ## Test Suite Overview
 
-The test suite contains **236 tests** organized into 7 categories:
+The test suite contains **248 tests** organized into 8 categories:
 
 | Category | Tests | Description |
 |----------|-------|-------------|
@@ -46,6 +46,7 @@ The test suite contains **236 tests** organized into 7 categories:
 | Integration (`test_integration.py`) | 5 | Authlib interoperability |
 | JWS (`test_jws.py`) | 63 | Token creation, verification, TTL expiration, header validation |
 | Keystore (`test_keystore.py`) | 49 | All storage backends (Memory, Env, File), corruption detection |
+| OWASP Compliance (`test_owasp_compliance.py`) | 12 | OWASP Password Storage Cheat Sheet validation, PBKDF2 verification |
 | Security (`test_security.py`) | 32 | Error message sanitization, input validation |
 
 ## Running Specific Test Categories
@@ -121,6 +122,51 @@ pytest tests/test_keystore.py::TestEnvKeyStore -v
 - AgentIdentity integration (persistence across restarts)
 - Security: file permissions (0o600), path traversal protection
 - Error handling: wrong passwords, invalid seeds, data corruption
+
+### OWASP Compliance Tests
+
+Tests for OWASP Password Storage Cheat Sheet compliance:
+
+```bash
+# Run all OWASP compliance tests
+pytest tests/test_owasp_compliance.py -v
+
+# Run specific compliance test class
+pytest tests/test_owasp_compliance.py::TestOWASPCompliance -v
+pytest tests/test_owasp_compliance.py::TestCryptoRationaleAlignment -v
+pytest tests/test_owasp_compliance.py::TestThreatModelAlignment -v
+```
+
+**What's tested:**
+- **OWASP Password Storage Standards** (12 tests total)
+  - PBKDF2 iteration count validation (480,000 iterations)
+  - OWASP 2021 minimum compliance (310,000 iterations)
+  - HMAC-SHA256 algorithm verification
+  - Salt randomness and uniqueness
+  - Salt length (128 bits / 16 bytes per NIST SP 800-132)
+  - Output length (256 bits / 32 bytes)
+- **Documentation Alignment** (`CRYPTO_RATIONALE.md`)
+  - Iteration count accuracy
+  - PBKDF2-HMAC-SHA256 implementation claims
+  - Fernet encryption (AES-128-CBC + HMAC) verification
+- **Threat Model Validation** (`THREAT_MODEL.md`)
+  - Brute-force resistance calculations
+  - GPU crack time estimates
+  - Security margin verification
+
+**Security Standards Validated:**
+- [OWASP Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+- NIST SP 800-132 (PBKDF2 Recommendations)
+- OWASP 2021 minimum: 310,000 iterations
+- OWASP 2023 recommendation: 600,000 iterations
+
+**Implementation Status:**
+- Current: 480,000 iterations (55% above OWASP 2021 minimum)
+- Compliance: ~80% of OWASP 2023 recommendation
+- Upgrade plan: v1.0.0 will increase to 600,000 iterations with backward compatibility
+
+**PyO3 Compatibility Note:**
+These tests use module-scoped fixtures to prevent PyO3 reinitialization errors. FileKeyStore uses the `cryptography` library (PyO3/Rust bindings), which can only initialize once per interpreter process. See [docs/PYO3_TESTING_BEST_PRACTICES.md](PYO3_TESTING_BEST_PRACTICES.md) for details.
 
 ### Integration Tests
 
@@ -464,12 +510,12 @@ print(f"Created 100 tokens in {elapsed:.2f}s ({elapsed*10:.2f}ms each)")
 - ✅ All operations remain suitable for **high-throughput IoT/edge deployments**
 - ✅ Ed25519 + PyNaCl's libsodium wrapper delivers excellent ARM64 performance
 
-## Summary (v0.2.4)
+## Summary (v0.2.5)
 
-- **236 tests** covering all functionality (+135 tests since initial release)
-- **7 test categories**: Compliance, Core, Fuzzing, Integration, JWS, Keystore, Security
+- **248 tests** covering all functionality (+12 OWASP compliance tests since v0.2.4)
+- **8 test categories**: Compliance, Core, Fuzzing, Integration, JWS, Keystore, OWASP Compliance, Security
 - **Excellent coverage**: 95.7% overall, with 100% on security-critical code
-- **Fast execution**: Full suite runs in ~11 seconds
+- **Fast execution**: Full suite runs in ~12 seconds
 - **3 skipped tests**: 2 resource-intensive fuzzing, 1 environmental issue
 
 ### Test Coverage Statistics
@@ -484,7 +530,7 @@ Coverage: 95.7%
 ### Test Results
 
 ```
-233 passed, 3 skipped
+245 passed, 3 skipped
 0 failures
 ```
 

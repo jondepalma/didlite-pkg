@@ -1,0 +1,38 @@
+# CODEOWNERS file for didlite-pkg
+#
+# This file defines code ownership for automatic review requests.
+# GitHub will automatically request reviews from the code owners when
+# a pull request changes owned files.
+#
+# Syntax: <pattern> <owner1> <owner2> ...
+# Patterns use .gitignore syntax
+# Owners can be: @username, @org/team-name, or email@example.com
+#
+# More info: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+# This will be requested for review on all PRs unless overridden below
+* @jondepalma
+
+# Core library code - critical security/cryptography code
+/didlite/ @jondepalma
+
+# Security-critical tests
+/tests/test_security.py @jondepalma
+/tests/test_compliance.py @jondepalma
+
+# Documentation
+/docs/ @jondepalma
+*.md @jondepalma
+
+# GitHub workflows and configuration
+/.github/ @jondepalma
+/.github/workflows/ @jondepalma
+
+# Release and deployment
+/scripts/release.sh @jondepalma
+/pyproject.toml @jondepalma
+/setup.py @jondepalma
+
+# Security policy
+/SECURITY.md @jondepalma

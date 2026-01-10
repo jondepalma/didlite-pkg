@@ -97,11 +97,13 @@ sequenceDiagram
 pip install didlite
 ```
 
-**Note:** didlite is currently in beta (v0.2.3). Breaking changes may occur before v1.0.0.
+**Note:** didlite is currently in beta (v0.2.5). Breaking changes may occur before v1.0.0.
 
 ---
 
 ## 🚀 Quick Start
+
+[didlite-examples](https://github.com/jondepalma/didlite-examples) - Visit the companion repository for complete example code.
 
 ### Example 1: AI Agent Communication
 
@@ -218,9 +220,38 @@ If you just want to check a DID string and get the raw public key bytes:
 
 ---
 
+## 🤝 Getting Help
+
+### Community Support (Free)
+
+- **📖 Documentation**: [Documentation](docs/) and [didlite-examples companion repository](https://github.com/jondepalma/didlite-examples)
+- **💬 GitHub Discussions**: Questions, use cases, and best practices
+- **🐛 GitHub Issues**: Bug reports and feature requests
+- **🔐 Security**: Report vulnerabilities to [security@didlite.io](mailto:security@didlite.io)
+
+didlite is Apache 2.0 licensed - use it however you want. All features are freely available.
+
+### Production Consulting (Optional)
+
+Need help with production deployment, custom integration, or enterprise support?
+
+- **[Forjic Technology](https://forjic.io)** - Founded by didlite creator Jon DePalma
+  - Deep didlite expertise and production hardening
+  - Contact: [consulting@forjic.io](mailto:consulting@forjic.io)
+
+- **Other Options**: Hire any qualified consultant or use our free production guides
+
+didlite is independent and community-driven. Forjic is one option for commercial support.
+
+---
+
+**About**: didlite is created and maintained by [Jon DePalma](https://jondepalma.com). See [SECURITY.md](.github/SECURITY.md) for security policy.
+
+---
+
 ## 🧪 Testing & Quality
 
-### Test Coverage (v0.2.4)
+### Test Coverage (v0.2.5)
 
 **Coverage by Module:**
 
@@ -242,8 +273,9 @@ If you just want to check a DID string and get the raw public key bytes:
 | **Integration** (`test_integration.py`) | 5 | Cross-library compatibility (authlib) |
 | **JWS** (`test_jws.py`) | 63 | Token creation/verification, headers, expiration |
 | **Keystore** (`test_keystore.py`) | 49 | Storage backends, encryption, persistence |
+| **OWASP Compliance** (`test_owasp_compliance.py`) | 12 | OWASP Password Storage Cheat Sheet validation |
 | **Security** (`test_security.py`) | 32 | Error sanitization, input validation |
-| **Total** | **236** | **233 passed, 3 skipped** |
+| **Total** | **248** | **245 passed, 3 skipped** |
 
 **What's Tested:**
 - ✅ W3C DID:key compliance (RFC 8032, Multicodec 0xed01, base58btc encoding)
