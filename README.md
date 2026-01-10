@@ -294,3 +294,4 @@ We keep this library "lite" on purpose. We only support `did:key` to ensure maxi
 
 ## 📄 License
 Apache 2.0 - Commercial use allowed.
+test
