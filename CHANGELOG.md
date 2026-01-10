@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-01-09
+
 ### Added
 - **GitHub CODEOWNERS file** for automated review requests
   - Defines code ownership for security-critical components
