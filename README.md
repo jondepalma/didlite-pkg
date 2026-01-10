@@ -97,7 +97,7 @@ sequenceDiagram
 pip install didlite
 ```
 
-**Note:** didlite is currently in beta (v0.2.4). Breaking changes may occur before v1.0.0.
+**Note:** didlite is currently in beta (v0.2.5). Breaking changes may occur before v1.0.0.
 
 ---
 
@@ -251,7 +251,7 @@ didlite is independent and community-driven. Forjic is one option for commercial
 
 ## 🧪 Testing & Quality
 
-### Test Coverage (v0.2.4)
+### Test Coverage (v0.2.5)
 
 **Coverage by Module:**
 
@@ -273,8 +273,9 @@ didlite is independent and community-driven. Forjic is one option for commercial
 | **Integration** (`test_integration.py`) | 5 | Cross-library compatibility (authlib) |
 | **JWS** (`test_jws.py`) | 63 | Token creation/verification, headers, expiration |
 | **Keystore** (`test_keystore.py`) | 49 | Storage backends, encryption, persistence |
+| **OWASP Compliance** (`test_owasp_compliance.py`) | 12 | OWASP Password Storage Cheat Sheet validation |
 | **Security** (`test_security.py`) | 32 | Error sanitization, input validation |
-| **Total** | **236** | **233 passed, 3 skipped** |
+| **Total** | **248** | **245 passed, 3 skipped** |
 
 **What's Tested:**
 - ✅ W3C DID:key compliance (RFC 8032, Multicodec 0xed01, base58btc encoding)
