@@ -103,6 +103,8 @@ pip install didlite
 
 ## 🚀 Quick Start
 
+[didlite-examples](https://github.com/jondepalma/didlite-examples) - Visit the companion repository for complete example code.
+
 ### Example 1: AI Agent Communication
 
 **Agent 1 (Research Agent)** - Collects and signs lead data:
@@ -222,7 +224,7 @@ If you just want to check a DID string and get the raw public key bytes:
 
 ### Community Support (Free)
 
-- **📖 Documentation**: [Getting Started Guide](docs/) and [API Reference](docs/)
+- **📖 Documentation**: [Documentation](docs/) and [didlite-examples companion repository](https://github.com/jondepalma/didlite-examples)
 - **💬 GitHub Discussions**: Questions, use cases, and best practices
 - **🐛 GitHub Issues**: Bug reports and feature requests
 - **🔐 Security**: Report vulnerabilities to [security@didlite.io](mailto:security@didlite.io)

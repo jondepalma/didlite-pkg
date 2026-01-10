@@ -3,7 +3,7 @@
 **Version:** 1.0
 **Date:** 2025-12-25
 **Status:** Phase 2.3 - Security Documentation
-**Related:** [SECURITY_AUDIT.md](SECURITY_AUDIT.md), [THREAT_MODEL.md](THREAT_MODEL.md), [.github/SECURITY.md](../.github/SECURITY.md)
+**Related:** [THREAT_MODEL.md](THREAT_MODEL.md), [.github/SECURITY.md](../.github/SECURITY.md)
 
 ---
 
@@ -816,11 +816,8 @@ DID Document URL: https://example.com/.well-known/did.json
 
 ### didlite Internal Documentation
 
-- [SECURITY_AUDIT.md](SECURITY_AUDIT.md) - Security audit preparation
 - [THREAT_MODEL.md](THREAT_MODEL.md) - Threat model documentation
 - [.github/SECURITY.md](../.github/SECURITY.md) - Vulnerability disclosure policy
-- [PHASE_1.1_FINDINGS.md](PHASE_1.1_FINDINGS.md) - Cryptographic implementation review
-- [PHASE_1_SUMMARY.md](PHASE_1_SUMMARY.md) - Phase 1 complete summary
 
 ---
 
