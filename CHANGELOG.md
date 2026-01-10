@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **GitHub CODEOWNERS file** for automated review requests
+  - Defines code ownership for security-critical components
+  - Auto-assigns @jondepalma as reviewer on all PRs
+  - Special attention to core library, security tests, and release scripts
+- **Dependabot configuration** for automated dependency monitoring
+  - Weekly scans for Python dependencies (pynacl, py-multibase, test deps)
+  - Weekly scans for GitHub Actions version updates
+  - PRs target `dev` branch to maintain dev → main workflow
+  - Groups minor/patch updates, separates major updates for careful review
+  - Auto-assigns security labels for triage
+
+### Changed
+- **Moved SETUP_LOCAL.md to internal documentation** (#54)
+  - Package now available on PyPI, local setup guide no longer needed in public docs
+  - Moved to docs/dev-design/ (gitignored internal documentation)
+
 ### Fixed
 - **PyO3 reinitialization error in OWASP compliance tests**
   - Fixed tests/test_owasp_compliance.py to use module-scoped fixtures
