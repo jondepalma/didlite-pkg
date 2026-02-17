@@ -41,6 +41,9 @@ htmlcov/
 *.swo
 *~
 
+# Claude Code local configuration (agents, settings — not for public repos)
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db
