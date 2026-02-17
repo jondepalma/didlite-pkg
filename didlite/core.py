@@ -199,7 +199,14 @@ class AgentIdentity:
         # Reference: PHASE_5 VULN-2, Issue #34
         # Correct formula: add 0, 1, 2, or 3 equals signs based on length modulo 4
         d_padded = jwk["d"] + "=" * (-len(jwk["d"]) % 4)
-        private_key_bytes = base64.urlsafe_b64decode(d_padded)
+        # SECURITY: Wrap decode to normalize exception type and sanitize error messages
+        # Reference: PHASE_1.2_FINDINGS.md INFO-2, Issue #18
+        try:
+            private_key_bytes = base64.urlsafe_b64decode(d_padded)
+        except Exception as e:
+            raise ValueError(
+                f"Invalid JWK: failed to decode private key 'd' field - {type(e).__name__}"
+            ) from None
 
         if len(private_key_bytes) != 32:
             raise ValueError(f"Invalid JWK: private key must be 32 bytes, got {len(private_key_bytes)}")
@@ -342,7 +349,14 @@ def resolve_did_to_key(did: str) -> VerifyKey:
     mb_string = did.split(":", 2)[2]
 
     # Decode Multibase
-    decoded_bytes = multibase.decode(mb_string)
+    # SECURITY: Wrap decode to normalize exception type and sanitize error messages
+    # Reference: PHASE_1.2_FINDINGS.md INFO-1, Issue #17
+    try:
+        decoded_bytes = multibase.decode(mb_string)
+    except Exception as e:
+        raise ValueError(
+            f"Invalid DID: failed to decode multibase string - {type(e).__name__}"
+        ) from None
 
     # SECURITY: Validate minimum length (2-byte prefix + 32-byte key = 34 total)
     # Reference: SECURITY_FINDINGS.md CRIT-3, Issue #5
