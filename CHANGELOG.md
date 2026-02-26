@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.6] - 2026-02-17
+
+### Changed
+- **GitHub Actions dependency updates** via Dependabot (PR #60, closes #61)
+  - `actions/checkout`: v4 → v6
+  - `actions/setup-python`: v5 → v6
+  - `actions/upload-artifact`: v4 → v6
+  - `actions/download-artifact`: v4 → v7
+  - `codecov/codecov-action`: v4 → v5
+
+### Fixed
+- **Consistent error handling for multibase decode in `resolve_did_to_key()`** (#17)
+  - Wrapped `multibase.decode()` in try/except; library exceptions now raised as `ValueError`
+  - Error message: `"Invalid DID: failed to decode multibase string - <ExceptionType>"`
+  - Prevents internal library exception details from leaking to callers
+- **Consistent error handling for base64 decode in `from_jwk()`** (#18)
+  - Wrapped `base64.urlsafe_b64decode()` in try/except; `binascii.Error` now raised as `ValueError`
+  - Error message: `"Invalid JWK: failed to decode private key 'd' field - <ExceptionType>"`
+  - Ensures callers only need to catch `ValueError` for all JWK import errors
+
 ## [0.2.5] - 2026-01-09
 
 ### Added

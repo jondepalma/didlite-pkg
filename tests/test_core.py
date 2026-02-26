@@ -365,6 +365,25 @@ class TestAgentIdentity:
         with pytest.raises(TypeError, match="jwk must be a dict, got NoneType"):
             AgentIdentity.from_jwk(None)
 
+    def test_from_jwk_invalid_base64_d_field(self):
+        """
+        INFO-2 regression: from_jwk() normalizes binascii.Error from base64 decode to
+        a consistent ValueError with a sanitized message, not a raw binascii.Error (Issue #18).
+        """
+        import binascii
+        from unittest.mock import patch
+
+        valid_jwk = {
+            "kty": "OKP",
+            "crv": "Ed25519",
+            "d": "dGVzdGtleXRlc3RrZXl0ZXN0a2V5dGVzdGtleQ",  # valid base64 placeholder
+            "x": "11qYAYKxCrfVS_7TyWQHOg7hcvPapiMlrwIaaPcHURo",
+        }
+        # Simulate a binascii.Error during base64 decode — verify it becomes a ValueError
+        with patch("didlite.core.base64.urlsafe_b64decode", side_effect=binascii.Error("bad")):
+            with pytest.raises(ValueError, match="Invalid JWK: failed to decode private key 'd' field"):
+                AgentIdentity.from_jwk(valid_jwk)
+
 
 class TestResolveDIDToKey:
     """Tests for resolve_did_to_key function"""
@@ -436,6 +455,17 @@ class TestResolveDIDToKey:
         key2 = resolve_did_to_key(agent.did)
 
         assert key1.encode() == key2.encode()
+
+    def test_resolve_invalid_multibase_content(self):
+        """
+        INFO-1 regression: resolve_did_to_key() raises ValueError with a sanitized
+        message when the multibase payload is invalid, not a raw library exception
+        (Issue #17).
+        """
+        # 'z' is the base58btc multibase prefix; '0OIl' are invalid base58 characters
+        bad_did = "did:key:z0OIlINVALIDCHARS"
+        with pytest.raises(ValueError, match="Invalid DID: failed to decode multibase string"):
+            resolve_did_to_key(bad_did)
 
 
 class TestPhase5CoreRegressions:
